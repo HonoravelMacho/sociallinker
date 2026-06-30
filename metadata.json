@@ -1,0 +1,6 @@
+{
+  "name": "SocialLinker",
+  "description": "Transforme dados brutos em links diretos e QR Codes para 12 redes sociais de forma modular e moderna.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
