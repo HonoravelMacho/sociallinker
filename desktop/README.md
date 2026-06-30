@@ -123,6 +123,31 @@ Siga os passos abaixo para configurar e rodar no macOS:
 
 ---
 
+## ⚡ Como Abrir o SocialLinker Novamente (Após fechar)
+Sempre que você fechar a janela do SocialLinker e quiser reabri-lo, não é necessário fazer toda a instalação novamente! Basta abrir o terminal e rodar estes comandos rápidos:
+
+### 🐧 No Linux (Pop!_OS / Ubuntu) & 🍎 No macOS:
+Você pode abrir o terminal e rodar o script de atalho automático que criamos na pasta:
+```bash
+cd ~/sociallinker/desktop
+./abrir_sociallinker.sh
+```
+Ou rodar manualmente ativando o ambiente virtual:
+```bash
+cd ~/sociallinker/desktop && source venv/bin/activate && python3 sociallinker.py
+```
+
+### 🪟 No Windows:
+Basta entrar na pasta do projeto e dar **dois cliques** no arquivo `abrir_sociallinker.bat` que criamos para você!
+Ou, via PowerShell/Prompt de Comando:
+```cmd
+cd %USERPROFILE%\sociallinker\desktop
+.\venv\Scripts\activate
+python sociallinker.py
+```
+
+---
+
 ## ⚙️ Arquitetura do Projeto (Modular)
 
 O projeto foi estritamente dividido em módulos separados conforme as melhores práticas de arquitetura de software:

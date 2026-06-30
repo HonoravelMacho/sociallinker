@@ -797,6 +797,25 @@ def gerar_link(usuario: str) -> str:
     \"\"\"Gera link para iniciar conversas direta no Skype.\"\"\"
     user_clean = usuario.strip()
     return f"skype:{user_clean}?chat"`
+  },
+  'abrir_sociallinker.sh': {
+    label: 'abrir_sociallinker.sh',
+    path: 'abrir_sociallinker.sh',
+    code: `#!/bin/bash
+# Script para abrir o SocialLinker automaticamente no Linux/macOS
+cd "$(dirname "$0")"
+source venv/bin/activate
+python3 sociallinker.py`
+  },
+  'abrir_sociallinker.bat': {
+    label: 'abrir_sociallinker.bat',
+    path: 'abrir_sociallinker.bat',
+    code: `@echo off
+:: Script para abrir o SocialLinker automaticamente no Windows
+cd /d "%~dp0"
+call venv\\Scripts\\activate.bat
+python sociallinker.py
+pause`
   }
 };
 
@@ -1247,6 +1266,8 @@ export default function App() {
       // Main Files
       zip.file('sociallinker.py', PYTHON_PROJECT_FILES['sociallinker.py'].code);
       zip.file('requirements.txt', PYTHON_PROJECT_FILES['requirements.txt'].code);
+      zip.file('abrir_sociallinker.sh', PYTHON_PROJECT_FILES['abrir_sociallinker.sh'].code);
+      zip.file('abrir_sociallinker.bat', PYTHON_PROJECT_FILES['abrir_sociallinker.bat'].code);
 
       // Core package
       const coreFolder = zip.folder('core');
@@ -1466,153 +1487,181 @@ Feito com ❤️ por Tiago Rabelo.
                 }} 
               />
               
-              <div className="p-6 flex-1 flex flex-col justify-between relative z-10">
+              <div className="p-6 flex-1 flex flex-col relative z-10">
                 
                 {/* CABEÇALHO DA PLATAFORMA */}
-                <div>
-                  <div className="flex items-center gap-2.5 mb-2">
+                <div className="shrink-0 mb-4">
+                  <div className="flex items-center gap-2.5 mb-1.5">
                     <div className="p-2 rounded-lg bg-[#141414] border border-[#333]">
                       <theme.icon className="h-5 w-5" style={{ color: getPlatformHex(activePlatform) }} />
                     </div>
                     <h2 className="text-xl font-bold text-white tracking-tight">{theme.name}</h2>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed max-w-md">{theme.desc}</p>
-                  
-                  <div className="h-[1px] bg-[#333]/40 my-4" />
-                  
-                  {/* FORMULÁRIO DENSAMENTE DESIGNADO */}
-                  <div className="space-y-4">
-                    {theme.inputs.map((field) => {
-                      const hex = getPlatformHex(activePlatform);
-                      return (
-                        <div key={field.id} className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{field.label}</label>
-                          {field.large ? (
-                            <textarea
-                              value={formInputs[field.id] || ''}
-                              onChange={(e) => handleInputChange(field.id, e.target.value)}
-                              placeholder={field.placeholder}
-                              className="w-full bg-[#252525] border border-[#333] text-xs text-white rounded-md p-2.5 outline-none resize-none min-h-[75px] transition focus:border-zinc-700"
-                              onFocus={(e) => e.target.style.borderColor = hex}
-                              onBlur={(e) => e.target.style.borderColor = '#333'}
-                            />
-                          ) : (
-                            <input
-                              type="text"
-                              value={formInputs[field.id] || ''}
-                              onChange={(e) => handleInputChange(field.id, e.target.value)}
-                              placeholder={field.placeholder}
-                              className="w-full bg-[#252525] border border-[#333] text-xs text-white rounded-md p-2.5 outline-none transition focus:border-zinc-700"
-                              onFocus={(e) => e.target.style.borderColor = hex}
-                              onBlur={(e) => e.target.style.borderColor = '#333'}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">{theme.desc}</p>
+                  <div className="h-[1px] bg-[#333]/40 mt-3" />
                 </div>
 
-                {/* BOTÕES DE AÇÃO PRINCIPAL DO CLIENTE */}
-                <div className="mt-6 space-y-4">
-                  <button
-                    onClick={handleGenerateLink}
-                    style={{
-                      backgroundColor: getPlatformHex(activePlatform),
-                      color: (activePlatform === 'twitter' || activePlatform === 'skype' || activePlatform === 'whatsapp') ? '#0a2e16' : '#ffffff',
-                      boxShadow: `0 8px 20px ${getPlatformHex(activePlatform)}26`
-                    }}
-                    className="w-full py-3 px-4 rounded-lg font-bold text-xs tracking-wide transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    Gerar Link Direto
-                  </button>
-
-                  {/* DISPLAY DE RESULTADO */}
-                  <AnimatePresence>
-                    {generatedLink && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 15 }}
-                        className="bg-[#141414] border border-[#333] rounded-xl p-6 space-y-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span 
-                            className="text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-1.5"
-                            style={{ color: getPlatformHex(activePlatform) }}
-                          >
-                            <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ backgroundColor: getPlatformHex(activePlatform) }}></span>
-                            LINK GERADO COM SUCESSO
-                          </span>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={generatedLink}
-                            readOnly
-                            className="flex-1 bg-[#252525] border border-[#333] text-xs font-mono px-3 py-2.5 rounded-lg outline-none select-all"
-                            style={{ color: getPlatformHex(activePlatform) }}
-                          />
-                          <button
-                            onClick={handleCopyLink}
-                            className="bg-[#252525] hover:bg-zinc-800 text-slate-300 p-2.5 rounded-lg transition border border-[#333] cursor-pointer flex items-center justify-center relative group"
-                            title="Copiar Link"
-                          >
-                            {copied ? <Check className="h-4 w-4" style={{ color: getPlatformHex(activePlatform) }} /> : <Copy className="h-4 w-4" />}
-                            {copied && (
-                              <span className="absolute -top-8 bg-[#141414] border border-[#333] text-[10px] px-2 py-0.5 rounded text-emerald-400 whitespace-nowrap">
-                                Copiado!
-                              </span>
+                {/* GRID BIPARTIDO (LADO A LADO EM TELAS MEDIAS/GRANDES) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch min-h-0">
+                  
+                  {/* PAINEL ESQUERDO: CONFIGURAÇÃO DOS CAMPOS */}
+                  <div className="flex flex-col justify-between bg-[#141414]/40 border border-[#333]/50 rounded-xl p-5 space-y-5">
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                      <div className="flex items-center gap-2 pb-1 border-b border-[#333]/30">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider font-mono">1. Configurar Link</span>
+                      </div>
+                      
+                      {theme.inputs.map((field) => {
+                        const hex = getPlatformHex(activePlatform);
+                        return (
+                          <div key={field.id} className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{field.label}</label>
+                            {field.large ? (
+                              <textarea
+                                value={formInputs[field.id] || ''}
+                                onChange={(e) => handleInputChange(field.id, e.target.value)}
+                                placeholder={field.placeholder}
+                                className="w-full bg-[#1e1e1e] border border-[#333] text-xs text-white rounded-lg p-2.5 outline-none resize-none min-h-[75px] transition focus:border-zinc-700"
+                                onFocus={(e) => e.target.style.borderColor = hex}
+                                onBlur={(e) => e.target.style.borderColor = '#333'}
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={formInputs[field.id] || ''}
+                                onChange={(e) => handleInputChange(field.id, e.target.value)}
+                                placeholder={field.placeholder}
+                                className="w-full bg-[#1e1e1e] border border-[#333] text-xs text-white rounded-lg p-2.5 outline-none transition focus:border-zinc-700"
+                                onFocus={(e) => e.target.style.borderColor = hex}
+                                onBlur={(e) => e.target.style.borderColor = '#333'}
+                              />
                             )}
-                          </button>
-                        </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <button
-                            onClick={handleGenerateQr}
-                            className="w-full text-xs bg-[#252525] text-slate-400 font-bold py-2 rounded border border-[#333] hover:text-white transition-colors cursor-pointer flex items-center justify-center gap-2"
-                          >
-                            <QrCode className="h-3.5 w-3.5" />
-                            Gerar QR Code Local
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                    <button
+                      onClick={handleGenerateLink}
+                      style={{
+                        backgroundColor: getPlatformHex(activePlatform),
+                        color: (activePlatform === 'twitter' || activePlatform === 'skype' || activePlatform === 'whatsapp') ? '#0a2e16' : '#ffffff',
+                        boxShadow: `0 8px 20px ${getPlatformHex(activePlatform)}26`
+                      }}
+                      className="w-full py-3 px-4 rounded-lg font-bold text-xs tracking-wide transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer mt-auto"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                      Gerar Link Direto
+                    </button>
+                  </div>
 
-                  {/* DISPLAY DO QR CODE */}
-                  <AnimatePresence>
-                    {showQr && qrCodeUrl && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="bg-[#141414] border border-[#333] rounded-xl p-6 flex flex-col items-center justify-center space-y-4"
-                      >
-                        <div className="bg-white p-2 rounded-lg">
-                          <img 
-                            src={qrCodeUrl} 
-                            alt="QR Code" 
-                            className="w-44 h-44 object-contain"
-                          />
-                        </div>
-                        <div className="text-center space-y-1">
-                          <p className="text-xs font-bold text-white">QR Code Pronto para Uso!</p>
-                          <p className="text-[10px] text-slate-500">Renderizado 100% offline localmente de forma vitalícia.</p>
+                  {/* PAINEL DIREITO: OUTPUT E QR CODE (SEMPRE OCUPADO) */}
+                  <div className="flex flex-col bg-[#141414]/70 border border-[#333]/80 rounded-xl p-5 relative overflow-hidden min-h-[280px]">
+                    
+                    {!generatedLink ? (
+                      /* ESTADO INICIAL / AGUARDANDO */
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-4 space-y-4">
+                        <div className="relative">
+                          {/* Moldura animada estilo scanner */}
+                          <div className="absolute -inset-2 border border-dashed border-slate-700 rounded-xl animate-[pulse_2s_infinite]"></div>
+                          <div className="h-28 w-28 rounded-lg bg-zinc-950 flex items-center justify-center text-slate-600 border border-[#333]">
+                            <QrCode className="h-16 w-16 stroke-[1.2] opacity-40" />
+                          </div>
+                          {/* Linha laser de scan decorativa */}
+                          <div className="absolute left-0 right-0 h-0.5 bg-sky-500/30 blur-[1px] animate-[bounce_3s_infinite]" style={{ backgroundColor: `${getPlatformHex(activePlatform)}40` }}></div>
                         </div>
                         
-                        <button
-                          onClick={handleSaveQrFile}
-                          className="w-full bg-slate-100 text-slate-900 text-xs font-bold py-2 rounded transition-colors hover:bg-white flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <Download className="h-4 w-4" />
-                          Salvar QR Code (.png)
-                        </button>
-                      </motion.div>
+                        <div className="space-y-1.5">
+                          <h4 className="text-xs font-bold text-slate-300">Aguardando Parâmetros</h4>
+                          <p className="text-[10px] text-slate-500 max-w-[200px] leading-relaxed">
+                            Preencha os campos de formulário e clique em <b>Gerar Link Direto</b> para visualizar o resultado e o QR Code.
+                          </p>
+                        </div>
+
+                        <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest pt-4">
+                          Status: Ready • Offline Engine
+                        </div>
+                      </div>
+                    ) : (
+                      /* ESTADO DE SUCESSO / LINK GERADO */
+                      <div className="flex-1 flex flex-col justify-between space-y-4">
+                        
+                        {/* LINK COPIÁVEL */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between pb-1 border-b border-[#333]/30">
+                            <span 
+                              className="text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-1.5"
+                              style={{ color: getPlatformHex(activePlatform) }}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full inline-block animate-pulse" style={{ backgroundColor: getPlatformHex(activePlatform) }}></span>
+                              Link Gerado com Sucesso
+                            </span>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={generatedLink}
+                              readOnly
+                              className="flex-1 bg-[#1e1e1e] border border-[#333] text-xs font-mono px-3 py-2.5 rounded-lg outline-none select-all"
+                              style={{ color: getPlatformHex(activePlatform) }}
+                            />
+                            <button
+                              onClick={handleCopyLink}
+                              className="bg-[#1e1e1e] hover:bg-zinc-800 text-slate-300 p-2.5 rounded-lg transition border border-[#333] cursor-pointer flex items-center justify-center relative group"
+                              title="Copiar Link"
+                            >
+                              {copied ? <Check className="h-4 w-4" style={{ color: getPlatformHex(activePlatform) }} /> : <Copy className="h-4 w-4" />}
+                              {copied && (
+                                <span className="absolute -top-8 bg-[#141414] border border-[#333] text-[10px] px-2 py-0.5 rounded text-emerald-400 whitespace-nowrap">
+                                  Copiado!
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* QR CODE SEÇÃO */}
+                        <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-[#333] rounded-lg p-3 bg-zinc-950/50">
+                          {!showQr ? (
+                            <button
+                              onClick={handleGenerateQr}
+                              className="text-xs bg-[#1e1e1e] hover:bg-[#252525] text-slate-300 hover:text-white font-bold px-4 py-2.5 rounded-lg border border-[#333] transition-all cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              <QrCode className="h-4 w-4" />
+                              Gerar QR Code Offline
+                            </button>
+                          ) : (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="w-full flex flex-col items-center space-y-3"
+                            >
+                              <div className="bg-white p-1.5 rounded-lg shadow-xl">
+                                <img 
+                                  src={qrCodeUrl} 
+                                  alt="QR Code" 
+                                  className="w-28 h-28 object-contain"
+                                />
+                              </div>
+                              <div className="text-center">
+                                <p className="text-[10px] text-slate-500 font-mono">Renderizado 100% offline</p>
+                              </div>
+                              <button
+                                onClick={handleSaveQrFile}
+                                className="w-full bg-slate-100 hover:bg-white text-slate-900 text-[10px] font-bold py-1.5 rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                Salvar QR Code (.png)
+                              </button>
+                            </motion.div>
+                          )}
+                        </div>
+
+                      </div>
                     )}
-                  </AnimatePresence>
+
+                  </div>
 
                 </div>
 
@@ -1897,6 +1946,27 @@ Feito com ❤️ por Tiago Rabelo.
                   <div className="bg-[#252525] border border-[#333] p-2.5 rounded-lg">
                     <code className="text-xs font-mono text-slate-300 select-all">python sociallinker.py</code>
                   </div>
+                </div>
+
+                {/* COMO ABRIR NOVAMENTE APÓS FECHAR */}
+                <div className="space-y-3 bg-[#1e1e1e] border-2 border-dashed p-5 rounded-xl border-sky-500/30">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 rounded-full text-[10px] font-mono font-bold flex items-center justify-center bg-sky-500/10 border border-sky-500/30 text-sky-400">
+                      ⚡
+                    </span>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Como abrir novamente após fechar</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+                    Sempre que você fechar a janela e quiser abrir o SocialLinker novamente, não é preciso instalar nada de novo! Basta abrir o terminal e digitar este comando simples de linha única (que entra na pasta e ativa o ambiente virtual na hora):
+                  </p>
+                  <div className="bg-[#141414] border border-[#333] p-3 rounded-lg flex flex-col gap-2">
+                    <code className="text-[11px] font-mono text-sky-400 select-all leading-normal">
+                      cd ~/sociallinker/desktop && source venv/bin/activate && python3 sociallinker.py
+                    </code>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-sans">
+                    <strong>Atalho Rápido (Pop!_OS / Linux / macOS):</strong> Nós criamos o script <code className="bg-[#141414] px-1 rounded text-white">abrir_sociallinker.sh</code> na pasta. Você pode executá-lo diretamente com <code className="bg-[#141414] px-1 rounded text-slate-300">./abrir_sociallinker.sh</code> para abrir o programa num piscar de olhos!
+                  </p>
                 </div>
 
                 {/* SEGURANÇA E PORTABILIDADE */}
