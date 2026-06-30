@@ -1780,9 +1780,38 @@ Feito com ❤️ por Tiago Rabelo.
                     Como rodar o SocialLinker no Linux Pop!_OS
                   </h3>
                   <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                    A estrutura de diretórios que criamos na aba ao lado (e que você pode baixar compactada no botão acima) está pronta para ser executada em sua máquina Pop!_OS localmente. Siga os passos detalhados no seu terminal:
+                    Você pode instalar e executar o SocialLinker na sua máquina de forma extremamente rápida. Escolha a opção de comando único automático ou faça o passo a passo manual.
                   </p>
                 </div>
+
+                {/* PASSO ULTRA-RÁPIDO */}
+                <div className="space-y-3 bg-[#1E1E1E] border-2 border-dashed p-5 rounded-xl" style={{ borderColor: getPlatformHex(activePlatform) + '33' }}>
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="h-5 w-5 rounded-full text-[10px] font-mono font-bold flex items-center justify-center border animate-pulse"
+                      style={{ 
+                        backgroundColor: getPlatformHex(activePlatform) + '1a', 
+                        borderColor: getPlatformHex(activePlatform) + '4d', 
+                        color: getPlatformHex(activePlatform) 
+                      }}
+                    >
+                      ★
+                    </span>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Método Mágico de Linha Única</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+                    Copie e cole este comando único no terminal do seu Pop!_OS. Ele fará <strong>tudo por você</strong>: instalará o git/python, clonará o repositório para a sua pasta pessoal (<code className="bg-[#141414] px-1 py-0.5 rounded text-white">~/sociallinker</code>), criará o ambiente virtual isolado, instalará as dependências e abrirá o aplicativo desktop na hora:
+                  </p>
+                  <div className="bg-[#141414] border border-[#333] p-3 rounded-lg flex flex-col gap-2">
+                    <code className="text-[11px] font-mono text-emerald-400 select-all leading-normal whitespace-pre-wrap break-all">
+                      sudo apt update && sudo apt install git python3 python3-pip python3-venv -y && git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker && cd ~/sociallinker/desktop && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && python3 sociallinker.py
+                    </code>
+                  </div>
+                </div>
+
+                <div className="h-[1px] bg-[#333] my-2" />
+
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Alternativa: Passo a Passo Detalhado</div>
 
                 {/* PASSO 1 */}
                 <div className="space-y-2 bg-[#141414] border border-[#333] p-4 rounded-xl">
@@ -1797,11 +1826,12 @@ Feito com ❤️ por Tiago Rabelo.
                     >
                       1
                     </span>
-                    <h4 className="text-xs font-bold text-white">Instalar o Python, Pip e Venv do sistema</h4>
+                    <h4 className="text-xs font-bold text-white">Clonar o repositório do seu GitHub</h4>
                   </div>
-                  <p className="text-[11px] text-slate-400">Certifique-se de que possui as ferramentas básicas de desenvolvimento para Linux instaladas:</p>
-                  <div className="bg-[#252525] border border-[#333] p-2.5 rounded-lg flex items-center justify-between">
-                    <code className="text-xs font-mono text-slate-300 select-all">sudo apt install python3 python3-pip python3-venv -y</code>
+                  <p className="text-[11px] text-slate-400">Abra o terminal e faça o clone do repositório para a sua pasta pessoal:</p>
+                  <div className="bg-[#252525] border border-[#333] p-2.5 rounded-lg flex flex-col gap-1">
+                    <code className="text-xs font-mono text-slate-300 select-all">git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker</code>
+                    <code className="text-xs font-mono text-slate-400 select-all">cd ~/sociallinker/desktop</code>
                   </div>
                 </div>
 
@@ -1820,7 +1850,7 @@ Feito com ❤️ por Tiago Rabelo.
                     </span>
                     <h4 className="text-xs font-bold text-white">Criar ambiente virtual isolado (venv)</h4>
                   </div>
-                  <p className="text-[11px] text-slate-400">É uma excelente prática no Pop!_OS usar ambientes virtuais para não interferir nos pacotes python do sistema operacional:</p>
+                  <p className="text-[11px] text-slate-400">Entre na pasta desktop e ative o ambiente virtual para isolar as dependências:</p>
                   <div className="bg-[#252525] border border-[#333] p-2.5 rounded-lg flex flex-col gap-1.5">
                     <code className="text-xs font-mono text-slate-300 select-all">python3 -m venv venv</code>
                     <code className="text-xs font-mono text-slate-400 select-all">source venv/bin/activate</code>

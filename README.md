@@ -10,12 +10,21 @@ Este projeto é 100% open-source, gratuito e vitalício, licenciado sob a **Lice
 
 ---
 
+## 🚀 Método Ultra-Rápido: Instalar e Abrir no Linux (Pop!_OS / Ubuntu)
+Se você quer clonar e rodar o aplicativo nativo imediatamente na sua pasta pessoal (`~/sociallinker`) com **apenas um clique**, copie e cole o comando abaixo no seu terminal:
+
+```bash
+sudo apt update && sudo apt install git python3 python3-pip python3-venv -y && git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker && cd ~/sociallinker/desktop && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && python3 sociallinker.py
+```
+
+---
+
 ## 📂 Estrutura do Repositório
 
 ```text
 sociallinker/
 ├── desktop/                # 💻 Cliente Desktop nativo em Python e PySide6
-│   ├── main.py             # Ponto de entrada que inicializa a aplicação Qt
+│   ├── sociallinker.py     # Ponto de entrada que inicializa a aplicação Qt
 │   ├── requirements.txt    # Lista de dependências Python necessárias
 │   ├── README.md           # Guia de instalação específico do cliente desktop
 │   ├── core/               # Módulo interno de tratamento de strings e URLs
@@ -35,18 +44,19 @@ sociallinker/
 
 O cliente desktop está localizado na pasta `/desktop`. Ele funciona de forma 100% offline, privada e nativa em **Linux**, **Windows** e **macOS**. Siga as instruções abaixo para o seu sistema operacional:
 
-### 🐧 No Linux (Pop!_OS / Ubuntu / Debian)
+### 🐧 No Linux (Pop!_OS / Ubuntu / Debian) - Passo a Passo
 
 1. **Instalar as ferramentas de sistema**:
-   Abra o seu terminal e instale o Python, gerenciador de pacotes (`pip`) e utilitário de ambientes virtuais (`venv`):
+   Abra o seu terminal e instale o Git, Python, gerenciador de pacotes (`pip`) e utilitário de ambientes virtuais (`venv`):
    ```bash
    sudo apt update
-   sudo apt install python3 python3-pip python3-venv -y
+   sudo apt install git python3 python3-pip python3-venv -y
    ```
 
-2. **Navegar até a pasta do projeto**:
+2. **Clonar o Repositório na sua Pasta Pessoal**:
    ```bash
-   cd desktop
+   git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker
+   cd ~/sociallinker/desktop
    ```
 
 3. **Criar e ativar o ambiente virtual (venv)**:
@@ -62,7 +72,7 @@ O cliente desktop está localizado na pasta `/desktop`. Ele funciona de forma 10
 
 5. **Executar o SocialLinker**:
    ```bash
-   python3 main.py
+   python3 sociallinker.py
    ```
 
 ---
@@ -73,10 +83,11 @@ O cliente desktop está localizado na pasta `/desktop`. Ele funciona de forma 10
    - Acesse o site oficial [python.org](https://www.python.org/) e baixe a versão estável mais recente para Windows.
    - **IMPORTANTE**: No instalador, certifique-se de marcar a caixinha **"Add Python to PATH"** antes de prosseguir com a instalação.
 
-2. **Abrir o Terminal**:
-   Abra o PowerShell ou Prompt de Comando (cmd) e navegue até a pasta do projeto:
+2. **Abrir o Terminal e Clonar o Projeto**:
+   Abra o PowerShell ou Prompt de Comando (cmd) e navegue até a pasta pessoal para clonar:
    ```cmd
-   cd caminho\para\sociallinker\desktop
+   git clone https://github.com/HonoravelMacho/sociallinker.git
+   cd sociallinker\desktop
    ```
 
 3. **Criar e ativar o ambiente virtual (venv)**:
@@ -92,7 +103,7 @@ O cliente desktop está localizado na pasta `/desktop`. Ele funciona de forma 10
 
 5. **Executar o SocialLinker**:
    ```cmd
-   python main.py
+   python sociallinker.py
    ```
 
 ---
@@ -102,14 +113,15 @@ O cliente desktop está localizado na pasta `/desktop`. Ele funciona de forma 10
 1. **Instalar o Python**:
    - Se possuir o Homebrew instalado, execute no Terminal:
      ```bash
-     brew install python
+     brew install python git
      ```
    - Alternativamente, baixe e instale a versão para macOS diretamente do site oficial [python.org](https://www.python.org/).
 
-2. **Abrir o Terminal**:
-   Navegue até a pasta do projeto:
+2. **Abrir o Terminal e Clonar**:
+   Navegue até a pasta pessoal e clone:
    ```bash
-   cd caminho/para/sociallinker/desktop
+   git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker
+   cd ~/sociallinker/desktop
    ```
 
 3. **Criar e ativar o ambiente virtual (venv)**:
@@ -125,7 +137,7 @@ O cliente desktop está localizado na pasta `/desktop`. Ele funciona de forma 10
 
 5. **Executar o SocialLinker**:
    ```bash
-   python3 main.py
+   python3 sociallinker.py
    ```
 
 ---

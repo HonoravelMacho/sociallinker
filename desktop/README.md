@@ -6,22 +6,31 @@ Este projeto é open-source, distribuído sob a Licença Apache 2.0, gratuito e 
 
 ---
 
-## 🚀 Instalação e Execução por Sistema Operacional
+## ⚡ Método de Comando Único (Linux Pop!_OS / Ubuntu)
+Se você já quer baixar do GitHub, criar a pasta pessoal, o ambiente virtual e rodar tudo de uma vez sem cansar, copie e cole este comando único no terminal:
+```bash
+sudo apt update && sudo apt install git python3 python3-pip python3-venv -y && git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker && cd ~/sociallinker/desktop && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && python3 sociallinker.py
+```
+
+---
+
+## 🚀 Instalação e Execução por Sistema Operacional (Passo a Passo Manual)
 
 ### 🐧 No Linux (Pop!_OS / Ubuntu / Debian)
 
 Siga os passos abaixo no seu terminal para configurar o ambiente e rodar o aplicativo:
 
 1. **Instalar as dependências do sistema**:
-   Abra o seu terminal e certifique-se de que possui o Python 3 e o gerenciador de pacotes/ambientes virtuais instalados:
+   Abra o seu terminal e certifique-se de que possui o Git, Python 3 e o gerenciador de pacotes/ambientes virtuais instalados:
    ```bash
    sudo apt update
-   sudo apt install python3 python3-pip python3-venv -y
+   sudo apt install git python3 python3-pip python3-venv -y
    ```
 
-2. **Navegar até a pasta do projeto**:
+2. **Clonar o Repositório na sua Pasta Pessoal**:
    ```bash
-   cd desktop
+   git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker
+   cd ~/sociallinker/desktop
    ```
 
 3. **Criar e Ativar o Ambiente Virtual (Recomendado)**:
@@ -40,7 +49,7 @@ Siga os passos abaixo no seu terminal para configurar o ambiente e rodar o aplic
 5. **Executar o Aplicativo Desktop!**:
    Rode o script principal para abrir o SocialLinker na sua tela:
    ```bash
-   python3 main.py
+   python3 sociallinker.py
    ```
 
 ---
@@ -49,14 +58,15 @@ Siga os passos abaixo no seu terminal para configurar o ambiente e rodar o aplic
 
 Siga os passos abaixo para configurar e rodar no Windows:
 
-1. **Instalar o Python**:
-   - Acesse o site oficial [python.org](https://www.python.org/) e faça o download da versão mais recente.
-   - **IMPORTANTE**: No instalador, marque a caixa **"Add Python to PATH"** antes de clicar em instalar.
+1. **Instalar o Python e Git**:
+   - Acesse o site oficial [python.org](https://www.python.org/) e faça o download da versão mais recente do Python. Marque **"Add Python to PATH"** no instalador.
+   - Baixe e instale o Git de [git-scm.com](https://git-scm.com/).
 
-2. **Abrir o Terminal/PowerShell**:
-   Abra o PowerShell ou Prompt de Comando (cmd) e navegue até a pasta `desktop` do projeto:
+2. **Abrir o Terminal/PowerShell e clonar**:
+   Abra o PowerShell ou Prompt de Comando (cmd) e navegue até a pasta pessoal:
    ```cmd
-   cd caminho\para\sociallinker\desktop
+   git clone https://github.com/HonoravelMacho/sociallinker.git
+   cd sociallinker\desktop
    ```
 
 3. **Criar e Ativar o Ambiente Virtual (venv)**:
@@ -72,7 +82,7 @@ Siga os passos abaixo para configurar e rodar no Windows:
 
 5. **Executar o Aplicativo Desktop!**:
    ```cmd
-   python main.py
+   python sociallinker.py
    ```
 
 ---
@@ -84,14 +94,15 @@ Siga os passos abaixo para configurar e rodar no macOS:
 1. **Instalar o Python**:
    - Caso use o Homebrew, execute:
      ```bash
-     brew install python
+     brew install python git
      ```
    - Ou baixe e instale o pacote instalador oficial do Python para macOS diretamente de [python.org](https://www.python.org/).
 
-2. **Abrir o Terminal**:
-   Navegue até a pasta `desktop` do projeto:
+2. **Abrir o Terminal e clonar**:
+   Navegue até a pasta pessoal:
    ```bash
-   cd caminho/para/sociallinker/desktop
+   git clone https://github.com/HonoravelMacho/sociallinker.git ~/sociallinker
+   cd ~/sociallinker/desktop
    ```
 
 3. **Criar e Ativar o Ambiente Virtual (venv)**:
@@ -107,7 +118,7 @@ Siga os passos abaixo para configurar e rodar no macOS:
 
 5. **Executar o Aplicativo Desktop!**:
    ```bash
-   python3 main.py
+   python3 sociallinker.py
    ```
 
 ---
@@ -117,7 +128,7 @@ Siga os passos abaixo para configurar e rodar no macOS:
 O projeto foi estritamente dividido em módulos separados conforme as melhores práticas de arquitetura de software:
 
 - 📂 `desktop/`
-  - 📄 `main.py` - Ponto de entrada que inicializa a aplicação Qt.
+  - 📄 `sociallinker.py` - Ponto de entrada que inicializa a aplicação Qt.
   - 📄 `requirements.txt` - Lista de dependências Python.
   - 📂 `core/`
     - 📄 `utils.py` - Funções de limpeza de strings e codificação URL.
