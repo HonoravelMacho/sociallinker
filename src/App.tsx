@@ -59,6 +59,69 @@ def codificar_texto(texto: str) -> str:
     path: 'core/__init__.py',
     code: `# Pacote Core`
   },
+  'core/qr_custom.py': {
+    label: 'qr_custom.py',
+    path: 'core/qr_custom.py',
+    code: `import os
+import io
+import qrcode
+from PIL import Image, ImageDraw, ImageOps
+
+def gerar_qr_personalizado(
+    texto: str,
+    cor_qr: str = "#0ea5e9",
+    cor_fundo: str = "#ffffff",
+    fundo_transparente: bool = False,
+    logo_path: str = None
+) -> Image.Image:
+    """
+    Gera um QR Code personalizado usando Pillow (PIL) de forma 100% offline.
+    Suporta cor do QR, cor de fundo, fundo transparente e inserção de logo centralizado.
+    """
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4
+    )
+    qr.add_data(texto)
+    qr.make(fit=True)
+    
+    bg_color_temp = "#ffffff" if fundo_transparente else cor_fundo
+    img = qr.make_image(fill_color=cor_qr, back_color=bg_color_temp).convert("RGBA")
+    
+    if fundo_transparente:
+        datas = img.getdata()
+        newData = []
+        for item in datas:
+            if item[0] > 240 and item[1] > 240 and item[2] > 240:
+                newData.append((255, 255, 255, 0))
+            else:
+                newData.append(item)
+        img.putdata(newData)
+        
+    if logo_path and os.path.exists(logo_path):
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            qr_w, qr_h = img.size
+            logo_max_size = int(qr_w * 0.22)
+            logo = logo.resize((logo_max_size, logo_max_size), Image.Resampling.LANCZOS)
+            
+            border_padding = int(logo_max_size * 0.12)
+            card_size = logo_max_size + (border_padding * 2)
+            
+            card_color = (255, 255, 255, 255) if not fundo_transparente else (255, 255, 255, 240)
+            logo_card = Image.new("RGBA", (card_size, card_size), card_color)
+            logo_card.paste(logo, (border_padding, border_padding), logo)
+            
+            pos_x = (qr_w - card_size) // 2
+            pos_y = (qr_h - card_size) // 2
+            img.paste(logo_card, (pos_x, pos_y), logo_card)
+        except Exception as e:
+            print(f"Erro ao integrar logo no QR Code: {str(e)}")
+            
+    return img`
+  },
   'ui/main_window.py': {
     label: 'main_window.py',
     path: 'ui/main_window.py',
@@ -1021,6 +1084,21 @@ const PLATFORM_THEMES: Record<string, PlatformTheme> = {
     inputs: [
       { id: 'usuario', label: 'ID ou Usuário do Skype', placeholder: 'live:tiago_rabelo' }
     ]
+  },
+  qr_custom: {
+    name: 'QR Code Personalizado',
+    color: 'bg-sky-500 hover:bg-sky-600 focus:ring-sky-500/20 text-white',
+    hoverColor: 'bg-sky-600',
+    textColor: '#0ea5e9',
+    accentBorder: 'border-sky-500/30 focus-within:border-sky-500',
+    accentText: 'text-sky-400',
+    ringColor: 'focus:ring-sky-500/20',
+    bgGradient: 'from-sky-950/20 to-zinc-950',
+    icon: QrCode,
+    desc: 'Gere um QR Code avançado a partir de qualquer link de destino, customizando as cores dos módulos, cor de fundo (ou transparente) e inserindo o logotipo da sua marca no centro para um visual profissional e exclusivo.',
+    inputs: [
+      { id: 'link', label: 'Link ou Texto de Destino (Ex: https://seusite.com)', placeholder: 'https://seu-link-ou-texto.com' }
+    ]
   }
 };
 
@@ -1070,7 +1148,8 @@ const getPlatformHex = (pid: string) => {
     youtube: '#FF0000',
     tiktok: '#EE1D52',
     pinterest: '#BD081C',
-    skype: '#00AFF0'
+    skype: '#00AFF0',
+    qr_custom: '#0ea5e9'
   };
   return hexMap[pid] || '#25D366';
 };
@@ -1092,6 +1171,13 @@ export default function App() {
   const [copiedFile, setCopiedFile] = useState<boolean>(false);
   const [showQr, setShowQr] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+
+  // --- ESTADOS DO QR CODE PERSONALIZADO ---
+  const [customQrColor, setCustomQrColor] = useState<string>('#0ea5e9');
+  const [customQrBgColor, setCustomQrBgColor] = useState<string>('#ffffff');
+  const [customQrTransparent, setCustomQrTransparent] = useState<boolean>(false);
+  const [customQrLogo, setCustomQrLogo] = useState<string>(''); // base64 DataURL
+  const [customQrLogoName, setCustomQrLogoName] = useState<string>('');
 
   // --- STATES FOR DEVELOPER HUB / PYTHON FILES ---
   const [activeTab, setActiveTab] = useState<'code' | 'guide'>('code');
@@ -1122,6 +1208,23 @@ export default function App() {
       ...prev,
       [fieldId]: val
     }));
+  };
+
+  const handleLogoChange = (e: any) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCustomQrLogoName(file.name);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCustomQrLogo(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setCustomQrLogo('');
+    setCustomQrLogoName('');
   };
 
   // --- LOGIC OF LINK GENERATION (SAMES AS PYTHON ENGINE) ---
@@ -1203,6 +1306,15 @@ export default function App() {
         link = `skype:${userClean}?chat`;
         break;
       }
+      case 'qr_custom': {
+        const destLink = (formInputs.link || '').trim();
+        if (!destLink) {
+          alert("Por favor, digite o link de destino!");
+          return;
+        }
+        link = destLink;
+        break;
+      }
       default:
         break;
     }
@@ -1210,6 +1322,74 @@ export default function App() {
     setGeneratedLink(link);
     setQrCodeUrl('');
     setShowQr(false);
+
+    // Se for QR Code customizado, já inicia a renderização imediata do QR com Canvas
+    if (activePlatform === 'qr_custom') {
+      setTimeout(async () => {
+        try {
+          const canvas = document.createElement('canvas');
+          await QRCode.toCanvas(canvas, link, {
+            width: 400,
+            margin: 2,
+            errorCorrectionLevel: 'H',
+            color: {
+              dark: customQrColor,
+              light: customQrTransparent ? '#00000000' : customQrBgColor
+            }
+          });
+
+          const ctx = canvas.getContext('2d');
+          if (ctx && customQrLogo) {
+            const img = new Image();
+            img.src = customQrLogo;
+            await new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve; // impede travamento caso o base64 esteja corrompido
+            });
+
+            if (img.complete && img.naturalWidth > 0) {
+              const qrSize = canvas.width;
+              const logoSize = qrSize * 0.22;
+              const padding = logoSize * 0.12;
+              const cardSize = logoSize + padding * 2;
+              const center = qrSize / 2;
+
+              ctx.fillStyle = customQrTransparent ? 'rgba(255, 255, 255, 0.95)' : 'white';
+              const x = center - cardSize / 2;
+              const y = center - cardSize / 2;
+              const radius = cardSize * 0.15;
+
+              ctx.beginPath();
+              ctx.moveTo(x + radius, y);
+              ctx.lineTo(x + cardSize - radius, y);
+              ctx.quadraticCurveTo(x + cardSize, y, x + cardSize, y + radius);
+              ctx.lineTo(x + cardSize, y + cardSize - radius);
+              ctx.quadraticCurveTo(x + cardSize, y + cardSize, x + cardSize - radius, y + cardSize);
+              ctx.lineTo(x + radius, y + cardSize);
+              ctx.quadraticCurveTo(x, y + cardSize, x, y + cardSize - radius);
+              ctx.lineTo(x, y + radius);
+              ctx.quadraticCurveTo(x, y, x + radius, y);
+              ctx.closePath();
+              ctx.fill();
+
+              ctx.drawImage(
+                img,
+                center - logoSize / 2,
+                center - logoSize / 2,
+                logoSize,
+                logoSize
+              );
+            }
+          }
+
+          const dataUrl = canvas.toDataURL('image/png');
+          setQrCodeUrl(dataUrl);
+          setShowQr(true);
+        } catch (err) {
+          console.error(err);
+        }
+      }, 50);
+    }
   };
 
   // --- LOCAL QR CODE GENERATION ---
@@ -1274,6 +1454,7 @@ export default function App() {
       if (coreFolder) {
         coreFolder.file('__init__.py', PYTHON_PROJECT_FILES['core/__init__.py'].code);
         coreFolder.file('utils.py', PYTHON_PROJECT_FILES['core/utils.py'].code);
+        coreFolder.file('qr_custom.py', PYTHON_PROJECT_FILES['core/qr_custom.py'].code);
       }
 
       // UI package
@@ -1436,7 +1617,7 @@ Feito com ❤️ por Tiago Rabelo.
               </div>
               
               <nav className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[280px] sm:max-h-[380px]">
-                {Object.entries(PLATFORM_THEMES).map(([pid, cfg]) => {
+                {Object.entries(PLATFORM_THEMES).filter(([pid]) => pid !== 'qr_custom').map(([pid, cfg]) => {
                   const IconComponent = cfg.icon;
                   const isSelected = activePlatform === pid;
                   const hex = getPlatformHex(pid);
@@ -1464,6 +1645,41 @@ Feito com ❤️ por Tiago Rabelo.
                     </button>
                   );
                 })}
+
+                <div className="h-[1px] bg-[#333]/55 my-3.5 mx-1" />
+                <div className="px-2 pb-1 text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">
+                  Ferramentas
+                </div>
+
+                {(() => {
+                  const cfg = PLATFORM_THEMES['qr_custom'];
+                  if (!cfg) return null;
+                  const IconComponent = cfg.icon;
+                  const isSelected = activePlatform === 'qr_custom';
+                  const hex = getPlatformHex('qr_custom');
+                  return (
+                    <button
+                      onClick={() => setActivePlatform('qr_custom')}
+                      style={
+                        isSelected 
+                          ? {
+                              backgroundColor: `${hex}1a`,
+                              color: hex,
+                              borderColor: `${hex}33`,
+                            }
+                          : undefined
+                      }
+                      className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-3 border ${
+                        isSelected 
+                          ? 'border-solid font-semibold shadow-sm' 
+                          : 'border-transparent text-slate-400 hover:text-white hover:bg-[#1f1f1f]'
+                      }`}
+                    >
+                      <IconComponent className="h-4 w-4 shrink-0 transition-colors" style={{ color: isSelected ? hex : '#94a3b8' }} />
+                      {cfg.name}
+                    </button>
+                  );
+                })()}
               </nav>
 
               {/* FOOTER OBRIGATÓRIO (CRÉDITOS) */}
@@ -1539,19 +1755,96 @@ Feito com ❤️ por Tiago Rabelo.
                           </div>
                         );
                       })}
+
+                      {activePlatform === 'qr_custom' && (
+                        <div className="space-y-4 pt-2 border-t border-[#333]/30">
+                          {/* Seção Cores */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cor do QR (Módulos)</label>
+                              <div className="flex items-center gap-2 bg-[#1e1e1e] border border-[#333] rounded-lg p-1.5">
+                                <input
+                                  type="color"
+                                  value={customQrColor}
+                                  onChange={(e) => setCustomQrColor(e.target.value)}
+                                  className="w-8 h-8 rounded border border-[#333] cursor-pointer bg-transparent"
+                                />
+                                <span className="text-xs font-mono font-bold text-slate-200">{customQrColor.toUpperCase()}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cor do Fundo</label>
+                              <div className={`flex items-center gap-2 bg-[#1e1e1e] border rounded-lg p-1.5 ${customQrTransparent ? 'opacity-50 border-dashed border-[#333]' : 'border-[#333]'}`}>
+                                <input
+                                  type="color"
+                                  value={customQrBgColor}
+                                  disabled={customQrTransparent}
+                                  onChange={(e) => setCustomQrBgColor(e.target.value)}
+                                  className="w-8 h-8 rounded border border-[#333] cursor-pointer bg-transparent disabled:cursor-not-allowed"
+                                />
+                                <span className="text-xs font-mono font-bold text-slate-200">
+                                  {customQrTransparent ? 'TRANSPARENTE' : customQrBgColor.toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Checkbox Transparência */}
+                          <label className="flex items-center gap-2 cursor-pointer select-none py-1 group">
+                            <input
+                              type="checkbox"
+                              checked={customQrTransparent}
+                              onChange={(e) => setCustomQrTransparent(e.target.checked)}
+                              className="accent-sky-500 rounded border-[#333]"
+                            />
+                            <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition">Tornar Fundo do QR Code Transparente</span>
+                          </label>
+
+                          {/* Logotipo Central */}
+                          <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Logotipo Central (Opcional)</label>
+                            <div className="flex items-center gap-3">
+                              <label className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-slate-200 border border-zinc-700 hover:border-zinc-600 rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-2">
+                                <FileCode className="h-3.5 w-3.5" />
+                                Escolher Ícone
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleLogoChange}
+                                  className="hidden"
+                                />
+                              </label>
+
+                              {customQrLogo && (
+                                <button
+                                  onClick={handleRemoveLogo}
+                                  className="px-3 py-1.5 bg-red-950 hover:bg-red-900 text-red-300 border border-red-900 rounded-lg text-xs font-bold cursor-pointer transition"
+                                >
+                                  Remover
+                                </button>
+                              )}
+
+                              <span className="text-xs text-slate-400 italic truncate max-w-[150px]">
+                                {customQrLogoName || 'Nenhum ícone selecionado'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <button
                       onClick={handleGenerateLink}
                       style={{
                         backgroundColor: getPlatformHex(activePlatform),
-                        color: (activePlatform === 'twitter' || activePlatform === 'skype' || activePlatform === 'whatsapp') ? '#0a2e16' : '#ffffff',
+                        color: (activePlatform === 'twitter' || activePlatform === 'skype' || activePlatform === 'whatsapp' || activePlatform === 'qr_custom') ? '#09090b' : '#ffffff',
                         boxShadow: `0 8px 20px ${getPlatformHex(activePlatform)}26`
                       }}
                       className="w-full py-3 px-4 rounded-lg font-bold text-xs tracking-wide transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer mt-auto"
                     >
                       <Play className="h-3.5 w-3.5" />
-                      Gerar Link Direto
+                      {activePlatform === 'qr_custom' ? 'Gerar QR Code Personalizado' : 'Gerar Link Direto'}
                     </button>
                   </div>
 

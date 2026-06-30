@@ -4,7 +4,8 @@ import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, 
     QLabel, QLineEdit, QTextEdit, QFileDialog, QMessageBox,
-    QFrame, QScrollArea, QGraphicsDropShadowEffect
+    QFrame, QScrollArea, QGraphicsDropShadowEffect, QColorDialog,
+    QCheckBox, QApplication
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QPixmap
@@ -266,6 +267,16 @@ PLATFORMS_CONFIG = {
             {"id": "usuario", "label": "Nome de Usuário ou ID Skype", "placeholder": "live:tiago_rabelo"}
         ],
         "generate_fn": skype.gerar_link
+    },
+    "qr_custom": {
+        "name": "QR Code Personalizado",
+        "color": "#0ea5e9",
+        "hover": "#38bdf8",
+        "desc": "Gere um QR Code avançado a partir de qualquer link de destino, customizando as cores dos módulos, cor de fundo (ou transparente) e inserindo o logotipo da sua marca no centro para um visual profissional e exclusivo.",
+        "inputs": [
+            {"id": "link", "label": "Link ou Texto de Destino (Ex: https://seusite.com)", "placeholder": "https://seu-link-ou-texto.com"}
+        ],
+        "generate_fn": None
     }
 }
 
@@ -279,6 +290,12 @@ class MainWindow(QMainWindow):
         self.inputs = {}
         self.sidebar_buttons = {}
         self.current_qr_image = None
+        
+        # Estado do QR Code Personalizado
+        self.qr_color_hex = "#0ea5e9" # Inicializa com azul celeste moderno do tema
+        self.qr_bg_hex = "#ffffff"
+        self.qr_transparent = False
+        self.qr_logo_path = ""
         
         # Configuração da Janela
         self.setWindowTitle("SocialLinker")
@@ -322,6 +339,8 @@ class MainWindow(QMainWindow):
         
         # Adicionar botões das redes
         for platform_id, cfg in PLATFORMS_CONFIG.items():
+            if platform_id == "qr_custom":
+                continue
             btn = QPushButton(cfg["name"])
             btn.setProperty("class", "networkBtn")
             btn.setCursor(Qt.PointingHandCursor)
@@ -329,6 +348,24 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda checked=False, pid=platform_id: self.update_form(pid))
             scroll_layout.addWidget(btn)
             self.sidebar_buttons[platform_id] = btn
+            
+        # Divisor e Seção de Ferramentas
+        tools_sep = QFrame()
+        tools_sep.setFrameShape(QFrame.HLine)
+        tools_sep.setStyleSheet("background-color: #27272a; max-height: 1px; margin: 15px 5px 8px 5px; border: none;")
+        scroll_layout.addWidget(tools_sep)
+        
+        lbl_tools = QLabel("FERRAMENTAS")
+        lbl_tools.setStyleSheet("color: #71717a; font-size: 10px; font-weight: bold; padding-left: 10px; margin-bottom: 4px; font-family: monospace; letter-spacing: 1px;")
+        scroll_layout.addWidget(lbl_tools)
+        
+        qr_cfg = PLATFORMS_CONFIG["qr_custom"]
+        qr_btn = QPushButton(qr_cfg["name"])
+        qr_btn.setProperty("class", "networkBtn")
+        qr_btn.setCursor(Qt.PointingHandCursor)
+        qr_btn.clicked.connect(lambda: self.update_form("qr_custom"))
+        scroll_layout.addWidget(qr_btn)
+        self.sidebar_buttons["qr_custom"] = qr_btn
             
         scroll_layout.addStretch()
         scroll_area.setWidget(scroll_content)
@@ -492,6 +529,110 @@ class MainWindow(QMainWindow):
             self.form_layout.addWidget(row)
             self.inputs[field["id"]] = inp
             
+        if platform_id == "qr_custom":
+            # 1. Seção de Cores (Lado a lado usando QHBoxLayout)
+            colors_row = QWidget()
+            colors_lay = QHBoxLayout(colors_row)
+            colors_lay.setContentsMargins(0, 5, 0, 5)
+            colors_lay.setSpacing(15)
+            
+            # Controle Cor do QR
+            qr_col_box = QWidget()
+            qr_col_lay = QVBoxLayout(qr_col_box)
+            qr_col_lay.setContentsMargins(0, 0, 0, 0)
+            qr_col_lay.setSpacing(4)
+            qr_col_lbl = QLabel("COR DO QR (MÓDULOS)")
+            qr_col_lbl.setProperty("class", "fieldLabel")
+            qr_col_lbl.setStyleSheet("font-size: 11px; color: #a1a1aa;")
+            
+            qr_col_btn = QPushButton(self.qr_color_hex)
+            qr_col_btn.setCursor(Qt.PointingHandCursor)
+            qr_col_btn.setStyleSheet(f"background-color: {self.qr_color_hex}; color: #ffffff; border: 1px solid #3f3f46; font-weight: bold; border-radius: 4px; padding: 8px;")
+            qr_col_btn.clicked.connect(lambda: self.on_choose_qr_color(qr_col_btn))
+            
+            qr_col_lay.addWidget(qr_col_lbl)
+            qr_col_lay.addWidget(qr_col_btn)
+            colors_lay.addWidget(qr_col_box)
+            
+            # Controle Cor de Fundo
+            bg_col_box = QWidget()
+            bg_col_lay = QVBoxLayout(bg_col_box)
+            bg_col_lay.setContentsMargins(0, 0, 0, 0)
+            bg_col_lay.setSpacing(4)
+            bg_col_lbl = QLabel("COR DO FUNDO")
+            bg_col_lbl.setProperty("class", "fieldLabel")
+            bg_col_lbl.setStyleSheet("font-size: 11px; color: #a1a1aa;")
+            
+            bg_col_btn = QPushButton(self.qr_bg_hex)
+            bg_col_btn.setCursor(Qt.PointingHandCursor)
+            if self.qr_transparent:
+                bg_col_btn.setEnabled(False)
+                bg_col_btn.setText("Desativado (Transparente)")
+                bg_col_btn.setStyleSheet("background-color: #27272a; color: #71717a; border: 1px dashed #3f3f46; border-radius: 4px; padding: 8px;")
+            else:
+                bg_col_btn.setStyleSheet(f"background-color: {self.qr_bg_hex}; color: #09090b; border: 1px solid #3f3f46; font-weight: bold; border-radius: 4px; padding: 8px;")
+            bg_col_btn.clicked.connect(lambda: self.on_choose_bg_color(bg_col_btn))
+            
+            bg_col_lay.addWidget(bg_col_lbl)
+            bg_col_lay.addWidget(bg_col_btn)
+            colors_lay.addWidget(bg_col_box)
+            
+            self.form_layout.addWidget(colors_row)
+            
+            # Checkbox Transparente
+            trans_box = QCheckBox("Tornar Fundo do QR Code Transparente")
+            trans_box.setChecked(self.qr_transparent)
+            trans_box.setStyleSheet("color: #e4e4e7; font-size: 11px; font-weight: bold; margin-top: 5px;")
+            trans_box.toggled.connect(lambda checked: self.on_toggle_transparent(checked, bg_col_btn))
+            self.form_layout.addWidget(trans_box)
+            
+            # 2. Seção de Logotipo/Ícone
+            logo_group = QWidget()
+            logo_lay = QVBoxLayout(logo_group)
+            logo_lay.setContentsMargins(0, 5, 0, 5)
+            logo_lay.setSpacing(6)
+            
+            logo_lbl = QLabel("LOGOTIPO CENTRAL (OPCIONAL)")
+            logo_lbl.setProperty("class", "fieldLabel")
+            logo_lbl.setStyleSheet("font-size: 11px; color: #a1a1aa;")
+            logo_lay.addWidget(logo_lbl)
+            
+            logo_actions = QHBoxLayout()
+            logo_actions.setSpacing(10)
+            
+            choose_logo_btn = QPushButton("Escolher Ícone (.png, .jpg)")
+            choose_logo_btn.setProperty("class", "secondaryBtn")
+            choose_logo_btn.setCursor(Qt.PointingHandCursor)
+            choose_logo_btn.setStyleSheet("padding: 8px 12px; font-size: 11px;")
+            
+            clear_logo_btn = QPushButton("Remover")
+            clear_logo_btn.setCursor(Qt.PointingHandCursor)
+            clear_logo_btn.setStyleSheet("background-color: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; border-radius: 6px; padding: 8px 12px; font-size: 11px; font-weight: bold;")
+            
+            logo_desc = QLabel()
+            if self.qr_logo_path:
+                filename = os.path.basename(self.qr_logo_path)
+                logo_desc.setText(f"✓ {filename}")
+                logo_desc.setStyleSheet("color: #10b981; font-weight: bold; font-size: 11px;")
+            else:
+                logo_desc.setText("Nenhum ícone selecionado")
+                logo_desc.setStyleSheet("color: #71717a; font-style: italic; font-size: 11px;")
+                
+            choose_logo_btn.clicked.connect(lambda: self.on_choose_logo(logo_desc))
+            clear_logo_btn.clicked.connect(lambda: self.on_clear_logo(logo_desc))
+            
+            logo_actions.addWidget(choose_logo_btn)
+            logo_actions.addWidget(clear_logo_btn)
+            logo_actions.addWidget(logo_desc)
+            logo_actions.addStretch()
+            
+            logo_lay.addLayout(logo_actions)
+            self.form_layout.addWidget(logo_group)
+            
+            self.generate_btn.setText("Gerar QR Code Personalizado")
+        else:
+            self.generate_btn.setText("Gerar Link")
+            
         # 4. Reseta os Painéis de Resultados
         self.result_card.setVisible(False)
         self.qr_card.setVisible(False)
@@ -513,7 +654,93 @@ class MainWindow(QMainWindow):
         style = BASE_STYLE.format(accent_color=color, accent_hover=hover)
         self.setStyleSheet(style)
 
+    def on_choose_qr_color(self, btn):
+        color = QColorDialog.getColor(self.qr_color_hex, self, "Escolher Cor dos Módulos")
+        if color.isValid():
+            self.qr_color_hex = color.name()
+            btn.setText(self.qr_color_hex)
+            btn.setStyleSheet(f"background-color: {self.qr_color_hex}; color: {'#ffffff' if color.lightness() < 128 else '#09090b'}; border: 1px solid #3f3f46; font-weight: bold; border-radius: 4px; padding: 8px;")
+
+    def on_choose_bg_color(self, btn):
+        color = QColorDialog.getColor(self.qr_bg_hex, self, "Escolher Cor do Fundo")
+        if color.isValid():
+            self.qr_bg_hex = color.name()
+            btn.setText(self.qr_bg_hex)
+            btn.setStyleSheet(f"background-color: {self.qr_bg_hex}; color: {'#ffffff' if color.lightness() < 128 else '#09090b'}; border: 1px solid #3f3f46; font-weight: bold; border-radius: 4px; padding: 8px;")
+
+    def on_toggle_transparent(self, checked, btn_bg):
+        self.qr_transparent = checked
+        btn_bg.setEnabled(not checked)
+        if checked:
+            btn_bg.setText("Desativado (Transparente)")
+            btn_bg.setStyleSheet("background-color: #27272a; color: #71717a; border: 1px dashed #3f3f46; border-radius: 4px; padding: 8px;")
+        else:
+            # Restaura a cor ativa
+            btn_bg.setText(self.qr_bg_hex)
+            btn_bg.setStyleSheet(f"background-color: {self.qr_bg_hex}; color: #09090b; border: 1px solid #3f3f46; font-weight: bold; border-radius: 4px; padding: 8px;")
+
+    def on_choose_logo(self, label_desc):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar Logotipo Central",
+            "",
+            "Imagens (*.png *.jpg *.jpeg *.bmp *.webp)"
+        )
+        if file_path:
+            self.qr_logo_path = file_path
+            filename = os.path.basename(file_path)
+            label_desc.setText(f"✓ {filename}")
+            label_desc.setStyleSheet("color: #10b981; font-weight: bold; font-size: 11px;")
+
+    def on_clear_logo(self, label_desc):
+        self.qr_logo_path = ""
+        label_desc.setText("Nenhum ícone selecionado")
+        label_desc.setStyleSheet("color: #71717a; font-style: italic; font-size: 11px;")
+
+    def generate_custom_qr_flow(self):
+        text_widget = self.inputs["link"]
+        texto = text_widget.text().strip()
+        if not texto:
+            QMessageBox.warning(self, "Campo Vazio", "Por favor, digite o link ou texto de destino do seu QR Code!")
+            return
+
+        from core.qr_custom import gerar_qr_personalizado
+        try:
+            # Invoca o gerador Pillow offline com todos os parâmetros customizados
+            img = gerar_qr_personalizado(
+                texto=texto,
+                cor_qr=self.qr_color_hex,
+                cor_fundo=self.qr_bg_hex,
+                fundo_transparente=self.qr_transparent,
+                logo_path=self.qr_logo_path
+            )
+
+            # Transforma imagem PIL para exibição no Pixmap do Qt
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            qr_bytes = buffer.getvalue()
+
+            self.current_qr_image = img
+
+            pixmap = QPixmap()
+            pixmap.loadFromData(qr_bytes)
+            scaled_pixmap = pixmap.scaled(150, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            self.qr_image_label.setPixmap(scaled_pixmap)
+            self.result_link.setText(texto)
+
+            # Exibe painéis de resultado
+            self.result_card.setVisible(True)
+            self.qr_card.setVisible(True)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro no QR Code", f"Não foi possível gerar seu QR Code personalizado:\n{str(e)}")
+
     def on_generate_link(self):
+        if self.current_platform == "qr_custom":
+            self.generate_custom_qr_flow()
+            return
+
         platform_cfg = PLATFORMS_CONFIG[self.current_platform]
         
         # Junta os dados dos inputs criados
