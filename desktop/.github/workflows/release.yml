@@ -1,0 +1,194 @@
+name: Build and Release SocialLinker
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows executable (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-with-history: false
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onedir --windowed --name="SocialLinker" --add-data "core;core" --add-data "modules;modules" --add-data "ui;ui" sociallinker.py
+
+      - name: Compress into Zip
+        shell: powershell
+        run: |
+          Compress-Archive -Path dist/SocialLinker -DestinationPath SocialLinker-Windows-v${{ github.ref_name }}.zip
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: SocialLinker-Windows-v${{ github.ref_name }}.zip
+
+  build-linux:
+    name: Build Linux packages (.deb, .rpm, .tar.gz)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm binutils libx11-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Executable with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onedir --windowed --name="sociallinker" --add-data "core:core" --add-data "modules:modules" --add-data "ui:ui" sociallinker.py
+
+      - name: Create .tar.gz (Generic Linux binary package)
+        run: |
+          mkdir -p release-linux
+          cp -r dist/sociallinker release-linux/
+          cp abrir_sociallinker.sh release-linux/ || true
+          tar -czf SocialLinker-Linux-v${{ github.ref_name }}.tar.gz -C release-linux sociallinker abrir_sociallinker.sh
+
+      - name: Build Debian Package (.deb)
+        run: |
+          # Define structure for deb package
+          # /usr/bin/sociallinker (script launching the binary)
+          # /usr/share/sociallinker (the full pyinstaller folder)
+          # /usr/share/applications/sociallinker.desktop (Desktop Entry)
+          # /usr/share/pixmaps/sociallinker.png (Icon - using a default fallback)
+          
+          DEB_DIR="deb-package"
+          mkdir -p $DEB_DIR/DEBIAN
+          mkdir -p $DEB_DIR/usr/bin
+          mkdir -p $DEB_DIR/usr/share/sociallinker
+          mkdir -p $DEB_DIR/usr/share/applications
+          
+          # Copy PyInstaller distribution
+          cp -r dist/sociallinker/* $DEB_DIR/usr/share/sociallinker/
+          
+          # Create start wrapper script
+          cat << 'EOF' > $DEB_DIR/usr/bin/sociallinker
+          #!/bin/bash
+          /usr/share/sociallinker/sociallinker "$@"
+          EOF
+          chmod +x $DEB_DIR/usr/bin/sociallinker
+          
+          # Create Control file
+          cat << EOF > $DEB_DIR/DEBIAN/control
+          Package: sociallinker
+          Version: ${{ github.ref_name }}
+          Architecture: amd64
+          Maintainer: tiagorabelosels@gmail.com
+          Description: SocialLinker - O Gerador de QR Codes Artísticos e Links Personalizados mais completo e offline.
+          Section: utils
+          Priority: optional
+          EOF
+          
+          # Create desktop shortcut
+          cat << EOF > $DEB_DIR/usr/share/applications/sociallinker.desktop
+          [Desktop Entry]
+          Name=SocialLinker
+          Comment=Gerador de QR Codes Artísticos e Customizados
+          Exec=/usr/bin/sociallinker
+          Terminal=false
+          Type=Application
+          Categories=Utility;Graphics;
+          Icon=sociallinker
+          EOF
+          
+          # Build .deb package
+          dpkg-deb --build $DEB_DIR sociallinker_v${{ github.ref_name }}_amd64.deb
+
+      - name: Build RPM Package (.rpm)
+        run: |
+          # Install alien tool to cleanly convert .deb to .rpm
+          sudo apt-get install -y alien
+          sudo alien --to-rpm --scripts sociallinker_v${{ github.ref_name }}_amd64.deb
+          # Rename the produced RPM to a cleaner name
+          mv sociallinker-*.rpm sociallinker_v${{ github.ref_name }}_amd64.rpm
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: |
+            SocialLinker-Linux-v${{ github.ref_name }}.tar.gz
+            sociallinker_v${{ github.ref_name }}_amd64.deb
+            sociallinker_v${{ github.ref_name }}_amd64.rpm
+
+  create-release:
+    name: Create GitHub Release and Upload Assets
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries
+          path: ./
+
+      - name: Download Linux Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries
+          path: ./
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: SocialLinker Release ${{ github.ref_name }}
+          body: |
+            ## 🎉 SocialLinker ${{ github.ref_name }} lançado!
+            
+            Este lançamento traz atualizações incríveis para o gerador de QR codes off-line mais completo do mercado!
+            
+            ### ✨ O que há de novo:
+            - **Gota de Sangue / Água Super Realista**: Silhueta inspirada em design vetorial profissional, com curvas e pontas perfeitas.
+            - **Estilos de Pixels Exclusivos**: Módulos fluidos (estilo lambuzo de tinta), cantos arredondados, corações e estrelas cheias.
+            - **Escaneabilidade Garantida**: Algoritmo que desenha marcas d'água suaves de contraste, mantendo o formato sem perder a leitura óptica da câmera!
+            
+            ---
+            
+            ### 📦 Arquivos para Download:
+            - **Windows (`.zip` com `.exe`)**: Extraia o arquivo e execute o `SocialLinker.exe` para rodar diretamente.
+            - **Debian / Ubuntu (`.deb`)**: Instale facilmente usando `sudo dpkg -i sociallinker_..._amd64.deb`.
+            - **RedHat / Fedora (`.rpm`)**: Instale facilmente usando `sudo rpm -i sociallinker_..._amd64.rpm`.
+            - **Generic Linux / Arch (`.tar.gz`)**: Descompacte e execute diretamente de qualquer distribuição Linux.
+          files: |
+            SocialLinker-Windows-v${{ github.ref_name }}.zip
+            sociallinker_v${{ github.ref_name }}_amd64.deb
+            sociallinker_v${{ github.ref_name }}_amd64.rpm
+            SocialLinker-Linux-v${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
