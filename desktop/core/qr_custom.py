@@ -27,15 +27,17 @@ def check_silhouette_mask(dx, dy, mask_type):
     if mask_type == "coracao":
         return (dx**2 + (dy - abs(dx)**0.6)**2) <= 0.85
     elif mask_type == "gota":
-        # Centered teardrop (gota)
-        adjusted_dy = dy + 0.1
-        if adjusted_dy < 0.1:
-            return (dx**2 + (adjusted_dy - 0.1)**2) <= 0.55
+        # Gota de sangue / água estilizada e centralizada
+        adjusted_dy = dy + 0.15
+        if adjusted_dy < 0.15:
+            # Base arredondada da gota
+            return (dx**2 + (adjusted_dy - 0.15)**2) <= 0.60
         else:
-            return abs(dx) <= 0.74 * (1.0 - adjusted_dy)
+            # Topo pontiagudo da gota
+            return abs(dx) <= 0.78 * (1.05 - adjusted_dy)
     elif mask_type == "estrela":
-        # 4-pointed star / diamond / astroid
-        return (abs(dx)**0.5 + abs(dy)**0.5) <= 1.0
+        # Estrela de 4 pontas (astroid / diamond)
+        return (abs(dx)**0.5 + abs(dy)**0.5) <= 1.05
     elif mask_type == "escudo":
         if dy >= -0.2:
             return abs(dx) <= 0.85
@@ -53,14 +55,14 @@ def gerar_qr_personalizado(
     logo_path: str = None,
     remover_fundo_logo: bool = False,
     formato_mascara: str = "none",  # "none", "coracao", "gota", "estrela", "escudo", "circulo"
-    estilo_modulo: str = "square"   # "square", "circle", "star", "heart"
+    estilo_modulo: str = "square"   # "square", "circle", "star", "heart", "rounded", "fluid"
 ) -> Image.Image:
     """
     Gera um QR Code artístico personalizado usando Pillow (PIL) de forma 100% offline.
     Suporta cor do QR, cor de fundo, fundo transparente, silhuetas criativas e estilos de pixel.
+    Para garantir escaneabilidade perfeita (100%), os pixels fora da silhueta são desenhados com
+    uma opacidade sutil (marca d'água) em vez de totalmente apagados.
     """
-    # Usamos correção de erro máxima (H - High) para garantir que a leitura funcione
-    # perfeitamente mesmo com um logotipo ou máscara estilizada
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -81,6 +83,9 @@ def gerar_qr_personalizado(
     # Cores
     cor_qr_rgb = hex_to_rgb(cor_qr)
     cor_qr_rgba = cor_qr_rgb + (255,)
+    
+    # Marca d'água suave de fundo para garantir leitura óptica impecável dos dados
+    cor_qr_suave_rgba = cor_qr_rgb + (35,) # ~14% de opacidade (suficiente para câmera, sutil ao olho)
     
     if fundo_transparente:
         bg_color = (255, 255, 255, 0)
@@ -105,41 +110,70 @@ def gerar_qr_personalizado(
                 is_finder = in_finder_pattern_box(row, col, N)
                 
                 if is_finder:
-                    # Desenha localizador clássico em formato quadrado para garantir 100% de scaneabilidade
+                    # Desenha localizador clássico sólido para leitura de posicionamento instantânea
                     draw.rectangle([x1, y1, x2, y2], fill=cor_qr_rgba)
                 else:
                     # Coordenadas normalizadas de -1.0 a 1.0 para máscara de silhueta
                     dx = (col - cx) / (N / 2.0)
                     dy = -(row - cy) / (N / 2.0)
                     
-                    if check_silhouette_mask(dx, dy, formato_mascara):
-                        # Aplica estilos de desenho aos módulos individuais
-                        if estilo_modulo == "circle":
-                            r = (box_size // 2) - 0.5
-                            mx = x1 + box_size / 2.0
-                            my = y1 + box_size / 2.0
-                            draw.ellipse([mx - r, my - r, mx + r, my + r], fill=cor_qr_rgba)
-                        elif estilo_modulo == "star":
-                            mx = x1 + box_size / 2.0
-                            my = y1 + box_size / 2.0
-                            half = box_size / 2.0
-                            points = [(mx, y1 + 1), (x2 - 1, my), (mx, y2 - 1), (x1 + 1, my)]
-                            draw.polygon(points, fill=cor_qr_rgba)
-                        elif estilo_modulo == "heart":
-                            mx = x1 + box_size / 2.0
-                            my = y1 + box_size / 2.0
-                            h = box_size * 0.4
-                            points = [
-                                (mx, my + h * 0.8),
-                                (mx - h, my - h * 0.2),
-                                (mx - h * 0.5, my - h * 0.8),
-                                (mx, my - h * 0.3),
-                                (mx + h * 0.5, my - h * 0.8),
-                                (mx + h, my - h * 0.2),
-                            ]
-                            draw.polygon(points, fill=cor_qr_rgba)
-                        else:  # "square" ou padrão
-                            draw.rectangle([x1, y1, x2, y2], fill=cor_qr_rgba)
+                    # Determina se está dentro da máscara de silhueta principal
+                    no_formato = check_silhouette_mask(dx, dy, formato_mascara)
+                    
+                    # Se não estiver na silhueta e houver uma máscara ativa, usa a cor suave
+                    # Caso contrário, usa a cor principal
+                    cor_desenho = cor_qr_rgba if (no_formato or formato_mascara == "none") else cor_qr_suave_rgba
+                    
+                    # Aplica estilos de desenho aos módulos individuais
+                    if estilo_modulo == "circle":
+                        r = (box_size // 2) - 0.5
+                        mx = x1 + box_size / 2.0
+                        my = y1 + box_size / 2.0
+                        draw.ellipse([mx - r, my - r, mx + r, my + r], fill=cor_desenho)
+                    elif estilo_modulo == "fluid":
+                        # Círculos ligeiramente expandidos/sobrepostos que se fundem de forma orgânica (lambuzos)
+                        r = (box_size * 0.62)
+                        mx = x1 + box_size / 2.0
+                        my = y1 + box_size / 2.0
+                        draw.ellipse([mx - r, my - r, mx + r, my + r], fill=cor_desenho)
+                    elif estilo_modulo == "rounded":
+                        # Retângulos com cantos arredondados (estilo gota suave de tinta)
+                        try:
+                            draw.rounded_rectangle([x1 + 0.5, y1 + 0.5, x2 - 0.5, y2 - 0.5], radius=3, fill=cor_desenho)
+                        except AttributeError:
+                            # Fallback para Pillow antigo que não tenha rounded_rectangle
+                            draw.rectangle([x1, y1, x2, y2], fill=cor_desenho)
+                    elif estilo_modulo == "star":
+                        # Estrelas maiores e mais cheias para excelente escaneabilidade
+                        mx = x1 + box_size / 2.0
+                        my = y1 + box_size / 2.0
+                        points = [
+                            (mx, y1),
+                            (x1 + box_size * 0.8, my - box_size * 0.15),
+                            (x2, my),
+                            (x1 + box_size * 0.8, my + box_size * 0.15),
+                            (mx, y2),
+                            (x1 + box_size * 0.2, my + box_size * 0.15),
+                            (x1, my),
+                            (x1 + box_size * 0.2, my - box_size * 0.15),
+                        ]
+                        draw.polygon(points, fill=cor_desenho)
+                    elif estilo_modulo == "heart":
+                        # Corações maiores e preenchidos que não deixam muito espaço vazio
+                        mx = x1 + box_size / 2.0
+                        my = y1 + box_size / 2.0
+                        h = box_size * 0.55 # Aumentado de 0.4 para 0.55 para maior nitidez óptica
+                        points = [
+                            (mx, my + h * 0.9),
+                            (mx - h * 1.1, my - h * 0.15),
+                            (mx - h * 0.6, my - h * 0.95),
+                            (mx, my - h * 0.35),
+                            (mx + h * 0.6, my - h * 0.95),
+                            (mx + h * 1.1, my - h * 0.15),
+                        ]
+                        draw.polygon(points, fill=cor_desenho)
+                    else:  # "square" clássico
+                        draw.rectangle([x1, y1, x2, y2], fill=cor_desenho)
                             
     # Se houver um logo especificado, fazemos a fusão perfeita no centro
     if logo_path and os.path.exists(logo_path):

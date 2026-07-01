@@ -634,12 +634,14 @@ class MainWindow(QMainWindow):
             style_combo = QComboBox()
             style_combo.addItems([
                 "Quadrados Clássicos",
+                "Arredondados (Tinta Suave)",
+                "Fluidos (Orgânicos / Lambuzos)",
                 "Círculos / Pontos",
                 "Estrelas / Diamantes",
-                "Corações Pequenos"
+                "Corações"
             ])
-            style_map = ["square", "circle", "star", "heart"]
-            style_combo.setCurrentIndex(style_map.index(self.qr_estilo_modulo))
+            style_map = ["square", "rounded", "fluid", "circle", "star", "heart"]
+            style_combo.setCurrentIndex(style_map.index(self.qr_estilo_modulo) if self.qr_estilo_modulo in style_map else 0)
             style_combo.setStyleSheet("background-color: #1e1e2e; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; font-weight: bold; font-size: 11px;")
             style_combo.currentIndexChanged.connect(lambda idx: self.on_change_module_style(style_map[idx]))
             

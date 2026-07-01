@@ -1495,6 +1495,24 @@ export default function App() {
 
           if (!ctx) return;
 
+          // Helper para converter Hex para RGBA com opacidade customizada
+          const hexToRgba = (hex: string, alpha: number) => {
+            const cleanHex = hex.replace('#', '');
+            if (cleanHex.length === 3) {
+              const r = parseInt(cleanHex[0] + cleanHex[0], 16);
+              const g = parseInt(cleanHex[1] + cleanHex[1], 16);
+              const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+              return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+            if (cleanHex.length === 6) {
+              const r = parseInt(cleanHex.substring(0, 2), 16);
+              const g = parseInt(cleanHex.substring(2, 4), 16);
+              const b = parseInt(cleanHex.substring(4, 6), 16);
+              return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+            return `rgba(0, 0, 0, ${alpha})`;
+          };
+
           // Helper para detectar localizadores
           const inFinderPatternBox = (row: number, col: number, size: number) => {
             if (row <= 6 && col <= 6) return true;
@@ -1503,22 +1521,22 @@ export default function App() {
             return false;
           };
 
-          // Helper para aplicar equações de silhueta
+          // Helper para aplicar equações de silhueta (Sincronizado com Python)
           const checkSilhouetteMask = (dx: number, dy: number, maskType: string) => {
             if (!maskType || maskType === 'none') return true;
             if (maskType === 'coracao') {
               return (dx * dx + Math.pow(dy - Math.pow(Math.abs(dx), 0.6), 2)) <= 0.85;
             }
             if (maskType === 'gota') {
-              const adjustedDy = dy + 0.1;
-              if (adjustedDy < 0.1) {
-                return (dx * dx + Math.pow(adjustedDy - 0.1, 2)) <= 0.55;
+              const adjustedDy = dy + 0.15;
+              if (adjustedDy < 0.15) {
+                return (dx * dx + Math.pow(adjustedDy - 0.15, 2)) <= 0.60;
               } else {
-                return Math.abs(dx) <= 0.74 * (1.0 - adjustedDy);
+                return Math.abs(dx) <= 0.78 * (1.05 - adjustedDy);
               }
             }
             if (maskType === 'estrela') {
-              return (Math.sqrt(Math.abs(dx)) + Math.sqrt(Math.abs(dy))) <= 1.0;
+              return (Math.sqrt(Math.abs(dx)) + Math.sqrt(Math.abs(dy))) <= 1.05;
             }
             if (maskType === 'escudo') {
               if (dy >= -0.2) {
@@ -1537,11 +1555,10 @@ export default function App() {
           ctx.fillStyle = customQrTransparent ? 'rgba(255, 255, 255, 0)' : customQrBgColor;
           ctx.fillRect(0, 0, width, width);
 
-          // Cor do QR
-          ctx.fillStyle = customQrColor;
-
           const cx = (N - 1) / 2.0;
           const cy = (N - 1) / 2.0;
+
+          const qrSuaveColor = hexToRgba(customQrColor, 0.14); // Marca d'água sutil para leitura 100% óptica
 
           for (let row = 0; row < N; row++) {
             for (let col = 0; col < N; col++) {
@@ -1552,45 +1569,68 @@ export default function App() {
 
                 if (isFinder) {
                   // Localizadores desenhados clássicos (retângulos sólidos) para leitura garantida
+                  ctx.fillStyle = customQrColor;
                   ctx.fillRect(x1, y1, boxSize, boxSize);
                 } else {
                   const dx = (col - cx) / (N / 2.0);
                   const dy = -(row - cy) / (N / 2.0);
 
-                  if (checkSilhouetteMask(dx, dy, customQrMask)) {
-                    if (customQrStyle === 'circle') {
-                      const r = (boxSize / 2) - 0.5;
-                      const mx = x1 + boxSize / 2;
-                      const my = y1 + boxSize / 2;
-                      ctx.beginPath();
-                      ctx.arc(mx, my, r, 0, 2 * Math.PI);
-                      ctx.fill();
-                    } else if (customQrStyle === 'star') {
-                      const mx = x1 + boxSize / 2;
-                      const my = y1 + boxSize / 2;
-                      ctx.beginPath();
-                      ctx.moveTo(mx, y1 + 1);
-                      ctx.lineTo(x1 + boxSize - 1, my);
-                      ctx.lineTo(mx, y1 + boxSize - 1);
-                      ctx.lineTo(x1 + 1, my);
-                      ctx.closePath();
-                      ctx.fill();
-                    } else if (customQrStyle === 'heart') {
-                      const mx = x1 + boxSize / 2;
-                      const my = y1 + boxSize / 2;
-                      const h = boxSize * 0.4;
-                      ctx.beginPath();
-                      ctx.moveTo(mx, my + h * 0.8);
-                      ctx.lineTo(mx - h, my - h * 0.2);
-                      ctx.quadraticCurveTo(mx - h, my - h * 0.7, mx - h * 0.5, my - h * 0.8);
-                      ctx.quadraticCurveTo(mx, my - h * 0.8, mx, my - h * 0.3);
-                      ctx.quadraticCurveTo(mx, my - h * 0.8, mx + h * 0.5, my - h * 0.8);
-                      ctx.quadraticCurveTo(mx + h, my - h * 0.7, mx + h, my - h * 0.2);
-                      ctx.closePath();
-                      ctx.fill();
+                  const noFormato = checkSilhouetteMask(dx, dy, customQrMask);
+                  ctx.fillStyle = (noFormato || customQrMask === 'none') ? customQrColor : qrSuaveColor;
+
+                  if (customQrStyle === 'circle') {
+                    const r = (boxSize / 2) - 0.5;
+                    const mx = x1 + boxSize / 2;
+                    const my = y1 + boxSize / 2;
+                    ctx.beginPath();
+                    ctx.arc(mx, my, r, 0, 2 * Math.PI);
+                    ctx.fill();
+                  } else if (customQrStyle === 'fluid') {
+                    // Círculos maiores que se tocam e fundem (estilo lambuzo de tinta orgânico)
+                    const r = boxSize * 0.62;
+                    const mx = x1 + boxSize / 2;
+                    const my = y1 + boxSize / 2;
+                    ctx.beginPath();
+                    ctx.arc(mx, my, r, 0, 2 * Math.PI);
+                    ctx.fill();
+                  } else if (customQrStyle === 'rounded') {
+                    // Cantos arredondados fluidos (gota de tinta arredondada)
+                    ctx.beginPath();
+                    if (typeof ctx.roundRect === 'function') {
+                      ctx.roundRect(x1 + 0.5, y1 + 0.5, boxSize - 1, boxSize - 1, 3);
                     } else {
-                      ctx.fillRect(x1, y1, boxSize, boxSize);
+                      ctx.rect(x1, y1, boxSize, boxSize);
                     }
+                    ctx.fill();
+                  } else if (customQrStyle === 'star') {
+                    const mx = x1 + boxSize / 2;
+                    const my = y1 + boxSize / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(mx, y1);
+                    ctx.lineTo(x1 + boxSize * 0.8, my - boxSize * 0.15);
+                    ctx.lineTo(x1 + boxSize, my);
+                    ctx.lineTo(x1 + boxSize * 0.8, my + boxSize * 0.15);
+                    ctx.lineTo(mx, y1 + boxSize);
+                    ctx.lineTo(x1 + boxSize * 0.2, my + boxSize * 0.15);
+                    ctx.lineTo(x1, my);
+                    ctx.lineTo(x1 + boxSize * 0.2, my - boxSize * 0.15);
+                    ctx.closePath();
+                    ctx.fill();
+                  } else if (customQrStyle === 'heart') {
+                    const mx = x1 + boxSize / 2;
+                    const my = y1 + boxSize / 2;
+                    const h = boxSize * 0.55; // Aumentado para excelente contraste
+                    ctx.beginPath();
+                    ctx.moveTo(mx, my + h * 0.9);
+                    ctx.lineTo(mx - h * 1.1, my - h * 0.15);
+                    ctx.quadraticCurveTo(mx - h * 1.1, my - h * 0.75, mx - h * 0.6, my - h * 0.95);
+                    ctx.quadraticCurveTo(mx, my - h * 0.95, mx, my - h * 0.35);
+                    ctx.quadraticCurveTo(mx, my - h * 0.95, mx + h * 0.6, my - h * 0.95);
+                    ctx.quadraticCurveTo(mx + h * 1.1, my - h * 0.75, mx + h * 1.1, my - h * 0.15);
+                    ctx.closePath();
+                    ctx.fill();
+                  } else {
+                    ctx.fillRect(x1, y1, boxSize, boxSize);
                   }
                 }
               }
@@ -2118,9 +2158,11 @@ Feito com ❤️ por Tiago Rabelo.
                                 className="w-full bg-[#1e1e1e] border border-[#333] text-xs text-white rounded-lg p-2.5 outline-none transition focus:border-zinc-700 font-semibold"
                               >
                                 <option value="square">Quadrados Clássicos</option>
+                                <option value="rounded">Arredondados (Tinta Suave)</option>
+                                <option value="fluid">Fluidos (Orgânicos / Lambuzos)</option>
                                 <option value="circle">Círculos / Pontos</option>
                                 <option value="star">Estrelas / Diamantes</option>
-                                <option value="heart">Corações Pequenos</option>
+                                <option value="heart">Corações</option>
                               </select>
                             </div>
                           </div>
