@@ -67,20 +67,64 @@ import io
 import qrcode
 from PIL import Image, ImageDraw, ImageOps
 
+def hex_to_rgb(hex_str):
+    h = hex_str.lstrip('#')
+    if len(h) == 3:
+        h = ''.join([c*2 for c in h])
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+def in_finder_pattern_box(row, col, N):
+    # Top-Left finder pattern
+    if row <= 6 and col <= 6:
+        return True
+    # Top-Right finder pattern
+    if row <= 6 and col >= N - 7:
+        return True
+    # Bottom-Left finder pattern
+    if row >= N - 7 and col <= 6:
+        return True
+    return False
+
+def check_silhouette_mask(dx, dy, mask_type):
+    if not mask_type or mask_type == "none":
+        return True
+    if mask_type == "coracao":
+        return (dx**2 + (dy - abs(dx)**0.6)**2) <= 0.85
+    elif mask_type == "gota":
+        # Centered teardrop (gota)
+        adjusted_dy = dy + 0.1
+        if adjusted_dy < 0.1:
+            return (dx**2 + (adjusted_dy - 0.1)**2) <= 0.55
+        else:
+            return abs(dx) <= 0.74 * (1.0 - adjusted_dy)
+    elif mask_type == "estrela":
+        # 4-pointed star / diamond / astroid
+        return (abs(dx)**0.5 + abs(dy)**0.5) <= 1.0
+    elif mask_type == "escudo":
+        if dy >= -0.2:
+            return abs(dx) <= 0.85
+        else:
+            return abs(dx) <= 0.85 * (1.0 - ((-0.2 - dy) / 0.8)**2)
+    elif mask_type == "circulo":
+        return (dx**2 + dy**2) <= 0.95
+    return True
+
 def gerar_qr_personalizado(
     texto: str,
     cor_qr: str = "#0ea5e9",
     cor_fundo: str = "#ffffff",
     fundo_transparente: bool = False,
     logo_path: str = None,
-    remover_fundo_logo: bool = False
+    remover_fundo_logo: bool = False,
+    formato_mascara: str = "none",  # "none", "coracao", "gota", "estrela", "escudo", "circulo"
+    estilo_modulo: str = "square"   # "square", "circle", "star", "heart"
 ) -> Image.Image:
     """
-    Gera um QR Code personalizado usando Pillow (PIL) de forma 100% offline.
-    Suporta cor do QR, cor de fundo, fundo transparente e inserção de logo centralizado.
+    Gera um QR Code artístico personalizado usando Pillow (PIL) de forma 100% offline.
+    Suporta cor do QR, cor de fundo, fundo transparente, silhuetas criativas e estilos de pixel.
     """
     # Usamos correção de erro máxima (H - High) para garantir que a leitura funcione
-    # perfeitamente mesmo com um logotipo cobrindo até 30% do centro do QR code.
+    # perfeitamente mesmo com um logotipo ou máscara estilizada
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -90,25 +134,77 @@ def gerar_qr_personalizado(
     qr.add_data(texto)
     qr.make(fit=True)
     
-    # Se for transparente, criamos com fundo branco primeiro para podermos substituir por transparente de forma limpa,
-    # caso contrário usamos a cor de fundo escolhida.
-    bg_color_temp = "#ffffff" if fundo_transparente else cor_fundo
+    matrix = qr.get_matrix()
+    N = len(matrix)
+    box_size = 10
+    border = 4
     
-    # Gera a imagem base do QR Code
-    img = qr.make_image(fill_color=cor_qr, back_color=bg_color_temp).convert("RGBA")
+    width = (N + 2 * border) * box_size
+    height = (N + 2 * border) * box_size
     
-    # Se o fundo for transparente, substitui os pixels brancos por transparentes
+    # Cores
+    cor_qr_rgb = hex_to_rgb(cor_qr)
+    cor_qr_rgba = cor_qr_rgb + (255,)
+    
     if fundo_transparente:
-        datas = img.getdata()
-        newData = []
-        for item in datas:
-            # Detecta pixels brancos ou extremamente claros para aplicar canal alpha zero
-            if item[0] > 240 and item[1] > 240 and item[2] > 240:
-                newData.append((255, 255, 255, 0)) # Transparente
-            else:
-                newData.append(item)
-        img.putdata(newData)
+        bg_color = (255, 255, 255, 0)
+    else:
+        bg_color = hex_to_rgb(cor_fundo) + (255,)
         
+    img = Image.new("RGBA", (width, height), bg_color)
+    draw = ImageDraw.Draw(img)
+    
+    cx = (N - 1) / 2.0
+    cy = (N - 1) / 2.0
+    
+    for row in range(N):
+        for col in range(N):
+            if matrix[row][col]:
+                # Coordenadas do pixel na imagem
+                x1 = (col + border) * box_size
+                y1 = (row + border) * box_size
+                x2 = x1 + box_size
+                y2 = y1 + box_size
+                
+                is_finder = in_finder_pattern_box(row, col, N)
+                
+                if is_finder:
+                    # Desenha localizador clássico em formato quadrado para garantir 100% de scaneabilidade
+                    draw.rectangle([x1, y1, x2, y2], fill=cor_qr_rgba)
+                else:
+                    # Coordenadas normalizadas de -1.0 a 1.0 para máscara de silhueta
+                    dx = (col - cx) / (N / 2.0)
+                    dy = -(row - cy) / (N / 2.0)
+                    
+                    if check_silhouette_mask(dx, dy, formato_mascara):
+                        # Aplica estilos de desenho aos módulos individuais
+                        if estilo_modulo == "circle":
+                            r = (box_size // 2) - 0.5
+                            mx = x1 + box_size / 2.0
+                            my = y1 + box_size / 2.0
+                            draw.ellipse([mx - r, my - r, mx + r, my + r], fill=cor_qr_rgba)
+                        elif estilo_modulo == "star":
+                            mx = x1 + box_size / 2.0
+                            my = y1 + box_size / 2.0
+                            half = box_size / 2.0
+                            points = [(mx, y1 + 1), (x2 - 1, my), (mx, y2 - 1), (x1 + 1, my)]
+                            draw.polygon(points, fill=cor_qr_rgba)
+                        elif estilo_modulo == "heart":
+                            mx = x1 + box_size / 2.0
+                            my = y1 + box_size / 2.0
+                            h = box_size * 0.4
+                            points = [
+                                (mx, my + h * 0.8),
+                                (mx - h, my - h * 0.2),
+                                (mx - h * 0.5, my - h * 0.8),
+                                (mx, my - h * 0.3),
+                                (mx + h * 0.5, my - h * 0.8),
+                                (mx + h, my - h * 0.2),
+                            ]
+                            draw.polygon(points, fill=cor_qr_rgba)
+                        else:  # "square" ou padrão
+                            draw.rectangle([x1, y1, x2, y2], fill=cor_qr_rgba)
+                            
     # Se houver um logo especificado, fazemos a fusão perfeita no centro
     if logo_path and os.path.exists(logo_path):
         try:
@@ -123,7 +219,6 @@ def gerar_qr_personalizado(
             
             if remover_fundo_logo:
                 # 1. Limpa os módulos do QR Code por trás do logo para que ele não misture com o QR
-                draw = ImageDraw.Draw(img)
                 # Adiciona uma pequena margem/padding invisível ao redor do logo para dar respiro
                 padding_limpeza = int(logo_max_size * 0.10)
                 tamanho_limpeza = logo_max_size + (padding_limpeza * 2)
@@ -136,8 +231,7 @@ def gerar_qr_personalizado(
                 if fundo_transparente:
                     cor_limpeza = (255, 255, 255, 0)
                 else:
-                    h = cor_fundo.lstrip('#')
-                    rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+                    rgb = hex_to_rgb(cor_fundo)
                     cor_limpeza = rgb + (255,)
                 
                 # Desenha o quadrado de limpeza
@@ -1237,6 +1331,8 @@ export default function App() {
   const [customQrLogo, setCustomQrLogo] = useState<string>(''); // base64 DataURL
   const [customQrLogoName, setCustomQrLogoName] = useState<string>('');
   const [customQrLogoTransparent, setCustomQrLogoTransparent] = useState<boolean>(false);
+  const [customQrMask, setCustomQrMask] = useState<string>('none');
+  const [customQrStyle, setCustomQrStyle] = useState<string>('square');
 
   // --- STATES FOR DEVELOPER HUB / PYTHON FILES ---
   const [activeTab, setActiveTab] = useState<'code' | 'guide'>('code');
@@ -1386,19 +1482,122 @@ export default function App() {
     if (activePlatform === 'qr_custom') {
       setTimeout(async () => {
         try {
-          const canvas = document.createElement('canvas');
-          await QRCode.toCanvas(canvas, link, {
-            width: 400,
-            margin: 2,
-            errorCorrectionLevel: 'H',
-            color: {
-              dark: customQrColor,
-              light: customQrTransparent ? '#00000000' : customQrBgColor
-            }
-          });
+          const qr = QRCode.create(link, { errorCorrectionLevel: 'H' });
+          const N = qr.modules.size;
+          const boxSize = 10;
+          const border = 4;
+          const width = (N + 2 * border) * boxSize;
 
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = width;
           const ctx = canvas.getContext('2d');
-          if (ctx && customQrLogo) {
+
+          if (!ctx) return;
+
+          // Helper para detectar localizadores
+          const inFinderPatternBox = (row: number, col: number, size: number) => {
+            if (row <= 6 && col <= 6) return true;
+            if (row <= 6 && col >= size - 7) return true;
+            if (row >= size - 7 && col <= 6) return true;
+            return false;
+          };
+
+          // Helper para aplicar equações de silhueta
+          const checkSilhouetteMask = (dx: number, dy: number, maskType: string) => {
+            if (!maskType || maskType === 'none') return true;
+            if (maskType === 'coracao') {
+              return (dx * dx + Math.pow(dy - Math.pow(Math.abs(dx), 0.6), 2)) <= 0.85;
+            }
+            if (maskType === 'gota') {
+              const adjustedDy = dy + 0.1;
+              if (adjustedDy < 0.1) {
+                return (dx * dx + Math.pow(adjustedDy - 0.1, 2)) <= 0.55;
+              } else {
+                return Math.abs(dx) <= 0.74 * (1.0 - adjustedDy);
+              }
+            }
+            if (maskType === 'estrela') {
+              return (Math.sqrt(Math.abs(dx)) + Math.sqrt(Math.abs(dy))) <= 1.0;
+            }
+            if (maskType === 'escudo') {
+              if (dy >= -0.2) {
+                return Math.abs(dx) <= 0.85;
+              } else {
+                return Math.abs(dx) <= 0.85 * (1.0 - Math.pow((-0.2 - dy) / 0.8, 2));
+              }
+            }
+            if (maskType === 'circulo') {
+              return (dx * dx + dy * dy) <= 0.95;
+            }
+            return true;
+          };
+
+          // Preenchimento do fundo
+          ctx.fillStyle = customQrTransparent ? 'rgba(255, 255, 255, 0)' : customQrBgColor;
+          ctx.fillRect(0, 0, width, width);
+
+          // Cor do QR
+          ctx.fillStyle = customQrColor;
+
+          const cx = (N - 1) / 2.0;
+          const cy = (N - 1) / 2.0;
+
+          for (let row = 0; row < N; row++) {
+            for (let col = 0; col < N; col++) {
+              if (qr.modules.get(row, col)) {
+                const x1 = (col + border) * boxSize;
+                const y1 = (row + border) * boxSize;
+                const isFinder = inFinderPatternBox(row, col, N);
+
+                if (isFinder) {
+                  // Localizadores desenhados clássicos (retângulos sólidos) para leitura garantida
+                  ctx.fillRect(x1, y1, boxSize, boxSize);
+                } else {
+                  const dx = (col - cx) / (N / 2.0);
+                  const dy = -(row - cy) / (N / 2.0);
+
+                  if (checkSilhouetteMask(dx, dy, customQrMask)) {
+                    if (customQrStyle === 'circle') {
+                      const r = (boxSize / 2) - 0.5;
+                      const mx = x1 + boxSize / 2;
+                      const my = y1 + boxSize / 2;
+                      ctx.beginPath();
+                      ctx.arc(mx, my, r, 0, 2 * Math.PI);
+                      ctx.fill();
+                    } else if (customQrStyle === 'star') {
+                      const mx = x1 + boxSize / 2;
+                      const my = y1 + boxSize / 2;
+                      ctx.beginPath();
+                      ctx.moveTo(mx, y1 + 1);
+                      ctx.lineTo(x1 + boxSize - 1, my);
+                      ctx.lineTo(mx, y1 + boxSize - 1);
+                      ctx.lineTo(x1 + 1, my);
+                      ctx.closePath();
+                      ctx.fill();
+                    } else if (customQrStyle === 'heart') {
+                      const mx = x1 + boxSize / 2;
+                      const my = y1 + boxSize / 2;
+                      const h = boxSize * 0.4;
+                      ctx.beginPath();
+                      ctx.moveTo(mx, my + h * 0.8);
+                      ctx.lineTo(mx - h, my - h * 0.2);
+                      ctx.quadraticCurveTo(mx - h, my - h * 0.7, mx - h * 0.5, my - h * 0.8);
+                      ctx.quadraticCurveTo(mx, my - h * 0.8, mx, my - h * 0.3);
+                      ctx.quadraticCurveTo(mx, my - h * 0.8, mx + h * 0.5, my - h * 0.8);
+                      ctx.quadraticCurveTo(mx + h, my - h * 0.7, mx + h, my - h * 0.2);
+                      ctx.closePath();
+                      ctx.fill();
+                    } else {
+                      ctx.fillRect(x1, y1, boxSize, boxSize);
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (customQrLogo) {
             const img = new Image();
             img.src = customQrLogo;
             await new Promise((resolve) => {
@@ -1892,6 +2091,39 @@ Feito com ❤️ por Tiago Rabelo.
                             />
                             <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition">Tornar Fundo do QR Code Transparente</span>
                           </label>
+
+                          {/* Seleção de Formato e Estilo de Módulos */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Formato / Máscara (Silhueta)</label>
+                              <select
+                                value={customQrMask}
+                                onChange={(e) => setCustomQrMask(e.target.value)}
+                                className="w-full bg-[#1e1e1e] border border-[#333] text-xs text-white rounded-lg p-2.5 outline-none transition focus:border-zinc-700 font-semibold"
+                              >
+                                <option value="none">Padrão Quadrado</option>
+                                <option value="coracao">Coração</option>
+                                <option value="gota">Gota de Sangue / Água</option>
+                                <option value="estrela">Estrela de 4 Pontas</option>
+                                <option value="escudo">Escudo de Proteção</option>
+                                <option value="circulo">Círculo</option>
+                              </select>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estilo dos Pixels (Módulos)</label>
+                              <select
+                                value={customQrStyle}
+                                onChange={(e) => setCustomQrStyle(e.target.value)}
+                                className="w-full bg-[#1e1e1e] border border-[#333] text-xs text-white rounded-lg p-2.5 outline-none transition focus:border-zinc-700 font-semibold"
+                              >
+                                <option value="square">Quadrados Clássicos</option>
+                                <option value="circle">Círculos / Pontos</option>
+                                <option value="star">Estrelas / Diamantes</option>
+                                <option value="heart">Corações Pequenos</option>
+                              </select>
+                            </div>
+                          </div>
 
                           {/* Logotipo Central */}
                           <div className="flex flex-col gap-2">

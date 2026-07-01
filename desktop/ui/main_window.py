@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, 
     QLabel, QLineEdit, QTextEdit, QFileDialog, QMessageBox,
     QFrame, QScrollArea, QGraphicsDropShadowEffect, QColorDialog,
-    QCheckBox, QApplication
+    QCheckBox, QApplication, QComboBox
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QPixmap
@@ -297,6 +297,8 @@ class MainWindow(QMainWindow):
         self.qr_transparent = False
         self.qr_logo_path = ""
         self.qr_logo_transparent_bg = False
+        self.qr_formato_mascara = "none"
+        self.qr_estilo_modulo = "square"
         
         # Configuração da Janela
         self.setWindowTitle("SocialLinker")
@@ -587,6 +589,66 @@ class MainWindow(QMainWindow):
             trans_box.toggled.connect(lambda checked: self.on_toggle_transparent(checked, bg_col_btn))
             self.form_layout.addWidget(trans_box)
             
+            # 1.5 Seção de Formato e Estilo de Módulo (Lado a Lado usando QHBoxLayout)
+            design_row = QWidget()
+            design_lay = QHBoxLayout(design_row)
+            design_lay.setContentsMargins(0, 5, 0, 5)
+            design_lay.setSpacing(15)
+            
+            # Controle de Formato da Máscara (Silhueta)
+            mask_box = QWidget()
+            mask_lay = QVBoxLayout(mask_box)
+            mask_lay.setContentsMargins(0, 0, 0, 0)
+            mask_lay.setSpacing(4)
+            mask_lbl = QLabel("FORMATO / MÁSCARA (SILHUETA)")
+            mask_lbl.setProperty("class", "fieldLabel")
+            mask_lbl.setStyleSheet("font-size: 11px; color: #a1a1aa;")
+            
+            mask_combo = QComboBox()
+            mask_combo.addItems([
+                "Padrão Quadrado",
+                "Coração",
+                "Gota de Sangue / Água",
+                "Estrela de 4 Pontas",
+                "Escudo de Proteção",
+                "Círculo"
+            ])
+            mask_map = ["none", "coracao", "gota", "estrela", "escudo", "circulo"]
+            mask_combo.setCurrentIndex(mask_map.index(self.qr_formato_mascara))
+            mask_combo.setStyleSheet("background-color: #1e1e2e; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; font-weight: bold; font-size: 11px;")
+            mask_combo.currentIndexChanged.connect(lambda idx: self.on_change_mask_format(mask_map[idx]))
+            
+            mask_lay.addWidget(mask_lbl)
+            mask_lay.addWidget(mask_combo)
+            design_lay.addWidget(mask_box)
+            
+            # Controle de Estilo de Pixel / Módulo
+            style_box = QWidget()
+            style_lay = QVBoxLayout(style_box)
+            style_lay.setContentsMargins(0, 0, 0, 0)
+            style_lay.setSpacing(4)
+            style_lbl = QLabel("ESTILO DOS PIXELS (MÓDULOS)")
+            style_lbl.setProperty("class", "fieldLabel")
+            style_lbl.setStyleSheet("font-size: 11px; color: #a1a1aa;")
+            
+            style_combo = QComboBox()
+            style_combo.addItems([
+                "Quadrados Clássicos",
+                "Círculos / Pontos",
+                "Estrelas / Diamantes",
+                "Corações Pequenos"
+            ])
+            style_map = ["square", "circle", "star", "heart"]
+            style_combo.setCurrentIndex(style_map.index(self.qr_estilo_modulo))
+            style_combo.setStyleSheet("background-color: #1e1e2e; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 6px; font-weight: bold; font-size: 11px;")
+            style_combo.currentIndexChanged.connect(lambda idx: self.on_change_module_style(style_map[idx]))
+            
+            style_lay.addWidget(style_lbl)
+            style_lay.addWidget(style_combo)
+            design_lay.addWidget(style_box)
+            
+            self.form_layout.addWidget(design_row)
+            
             # 2. Seção de Logotipo/Ícone
             logo_group = QWidget()
             logo_lay = QVBoxLayout(logo_group)
@@ -691,6 +753,12 @@ class MainWindow(QMainWindow):
     def on_toggle_logo_transparent(self, checked):
         self.qr_logo_transparent_bg = checked
 
+    def on_change_mask_format(self, mask_val):
+        self.qr_formato_mascara = mask_val
+
+    def on_change_module_style(self, style_val):
+        self.qr_estilo_modulo = style_val
+
     def on_choose_logo(self, label_desc):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -725,7 +793,9 @@ class MainWindow(QMainWindow):
                 cor_fundo=self.qr_bg_hex,
                 fundo_transparente=self.qr_transparent,
                 logo_path=self.qr_logo_path,
-                remover_fundo_logo=self.qr_logo_transparent_bg
+                remover_fundo_logo=self.qr_logo_transparent_bg,
+                formato_mascara=self.qr_formato_mascara,
+                estilo_modulo=self.qr_estilo_modulo
             )
 
             # Transforma imagem PIL para exibição no Pixmap do Qt
