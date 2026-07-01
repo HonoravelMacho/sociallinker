@@ -296,6 +296,7 @@ class MainWindow(QMainWindow):
         self.qr_bg_hex = "#ffffff"
         self.qr_transparent = False
         self.qr_logo_path = ""
+        self.qr_logo_transparent_bg = False
         
         # Configuração da Janela
         self.setWindowTitle("SocialLinker")
@@ -627,6 +628,14 @@ class MainWindow(QMainWindow):
             logo_actions.addStretch()
             
             logo_lay.addLayout(logo_actions)
+            
+            # Checkbox para remover moldura branca do logo (fundo transparente)
+            logo_bg_trans_box = QCheckBox("Remover moldura branca (Manter Logotipo Transparente)")
+            logo_bg_trans_box.setChecked(self.qr_logo_transparent_bg)
+            logo_bg_trans_box.setStyleSheet("color: #e4e4e7; font-size: 11px; font-weight: bold; margin-top: 5px;")
+            logo_bg_trans_box.toggled.connect(self.on_toggle_logo_transparent)
+            logo_lay.addWidget(logo_bg_trans_box)
+            
             self.form_layout.addWidget(logo_group)
             
             self.generate_btn.setText("Gerar QR Code Personalizado")
@@ -679,6 +688,9 @@ class MainWindow(QMainWindow):
             btn_bg.setText(self.qr_bg_hex)
             btn_bg.setStyleSheet(f"background-color: {self.qr_bg_hex}; color: #09090b; border: 1px solid #3f3f46; font-weight: bold; border-radius: 4px; padding: 8px;")
 
+    def on_toggle_logo_transparent(self, checked):
+        self.qr_logo_transparent_bg = checked
+
     def on_choose_logo(self, label_desc):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -712,7 +724,8 @@ class MainWindow(QMainWindow):
                 cor_qr=self.qr_color_hex,
                 cor_fundo=self.qr_bg_hex,
                 fundo_transparente=self.qr_transparent,
-                logo_path=self.qr_logo_path
+                logo_path=self.qr_logo_path,
+                remover_fundo_logo=self.qr_logo_transparent_bg
             )
 
             # Transforma imagem PIL para exibição no Pixmap do Qt

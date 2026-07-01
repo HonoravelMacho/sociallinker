@@ -72,12 +72,15 @@ def gerar_qr_personalizado(
     cor_qr: str = "#0ea5e9",
     cor_fundo: str = "#ffffff",
     fundo_transparente: bool = False,
-    logo_path: str = None
+    logo_path: str = None,
+    remover_fundo_logo: bool = False
 ) -> Image.Image:
     """
     Gera um QR Code personalizado usando Pillow (PIL) de forma 100% offline.
     Suporta cor do QR, cor de fundo, fundo transparente e inserção de logo centralizado.
     """
+    # Usamos correção de erro máxima (H - High) para garantir que a leitura funcione
+    # perfeitamente mesmo com um logotipo cobrindo até 30% do centro do QR code.
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -87,38 +90,83 @@ def gerar_qr_personalizado(
     qr.add_data(texto)
     qr.make(fit=True)
     
+    # Se for transparente, criamos com fundo branco primeiro para podermos substituir por transparente de forma limpa,
+    # caso contrário usamos a cor de fundo escolhida.
     bg_color_temp = "#ffffff" if fundo_transparente else cor_fundo
+    
+    # Gera a imagem base do QR Code
     img = qr.make_image(fill_color=cor_qr, back_color=bg_color_temp).convert("RGBA")
     
+    # Se o fundo for transparente, substitui os pixels brancos por transparentes
     if fundo_transparente:
         datas = img.getdata()
         newData = []
         for item in datas:
+            # Detecta pixels brancos ou extremamente claros para aplicar canal alpha zero
             if item[0] > 240 and item[1] > 240 and item[2] > 240:
-                newData.append((255, 255, 255, 0))
+                newData.append((255, 255, 255, 0)) # Transparente
             else:
                 newData.append(item)
         img.putdata(newData)
         
+    # Se houver um logo especificado, fazemos a fusão perfeita no centro
     if logo_path and os.path.exists(logo_path):
         try:
             logo = Image.open(logo_path).convert("RGBA")
+            
+            # Dimensões do QR Code
             qr_w, qr_h = img.size
+            
+            # O tamanho do logo não deve passar de ~22% do QR Code para garantir a decodificação do leitor
             logo_max_size = int(qr_w * 0.22)
             logo = logo.resize((logo_max_size, logo_max_size), Image.Resampling.LANCZOS)
             
-            border_padding = int(logo_max_size * 0.12)
-            card_size = logo_max_size + (border_padding * 2)
+            if remover_fundo_logo:
+                # 1. Limpa os módulos do QR Code por trás do logo para que ele não misture com o QR
+                draw = ImageDraw.Draw(img)
+                # Adiciona uma pequena margem/padding invisível ao redor do logo para dar respiro
+                padding_limpeza = int(logo_max_size * 0.10)
+                tamanho_limpeza = logo_max_size + (padding_limpeza * 2)
+                
+                pos_x1 = (qr_w - tamanho_limpeza) // 2
+                pos_y1 = (qr_h - tamanho_limpeza) // 2
+                pos_x2 = pos_x1 + tamanho_limpeza
+                pos_y2 = pos_y1 + tamanho_limpeza
+                
+                if fundo_transparente:
+                    cor_limpeza = (255, 255, 255, 0)
+                else:
+                    h = cor_fundo.lstrip('#')
+                    rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+                    cor_limpeza = rgb + (255,)
+                
+                # Desenha o quadrado de limpeza
+                draw.rectangle([pos_x1, pos_y1, pos_x2, pos_y2], fill=cor_limpeza)
+                
+                # 2. Cola o logotipo transparente diretamente no centro limpo
+                pos_logo_x = (qr_w - logo_max_size) // 2
+                pos_logo_y = (qr_h - logo_max_size) // 2
+                img.paste(logo, (pos_logo_x, pos_logo_y), logo)
+            else:
+                # Criamos uma moldura de fundo (um card de fundo arredondado ou quadrado) para o logo se destacar do padrão de pixels do QR
+                border_padding = int(logo_max_size * 0.12) # 12% de borda ao redor do logo
+                card_size = logo_max_size + (border_padding * 2)
+                
+                # Criamos o card de fundo para o logo
+                # Se o fundo do QR for transparente, fazemos uma moldura branca semi-transparente ou sólida
+                card_color = (255, 255, 255, 255) if not fundo_transparente else (255, 255, 255, 240)
+                logo_card = Image.new("RGBA", (card_size, card_size), card_color)
+                
+                # Cole o logo centralizado no seu card moldura
+                logo_card.paste(logo, (border_padding, border_padding), logo)
+                
+                # Posiciona o card de logo exatamente no centro geométrico do QR Code
+                pos_x = (qr_w - card_size) // 2
+                pos_y = (qr_h - card_size) // 2
+                img.paste(logo_card, (pos_x, pos_y), logo_card)
             
-            card_color = (255, 255, 255, 255) if not fundo_transparente else (255, 255, 255, 240)
-            logo_card = Image.new("RGBA", (card_size, card_size), card_color)
-            logo_card.paste(logo, (border_padding, border_padding), logo)
-            
-            pos_x = (qr_w - card_size) // 2
-            pos_y = (qr_h - card_size) // 2
-            img.paste(logo_card, (pos_x, pos_y), logo_card)
         except Exception as e:
-            print(f"Erro ao integrar logo no QR Code: {str(e)}")
+            print(f"[QR_GENERATOR] Erro ao integrar ícone no QR Code: {str(e)}")
             
     return img`
   },
@@ -1154,6 +1202,16 @@ const getPlatformHex = (pid: string) => {
   return hexMap[pid] || '#25D366';
 };
 
+const isColorLight = (hex: string) => {
+  const cleanHex = hex.replace('#', '');
+  if (cleanHex.length !== 6) return false;
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 165; // Limiar de segurança para leitura de QR Code
+};
+
 export default function App() {
   // --- STATES FOR LIVE APP MOCKUP ---
   const [activePlatform, setActivePlatform] = useState<string>('whatsapp');
@@ -1178,6 +1236,7 @@ export default function App() {
   const [customQrTransparent, setCustomQrTransparent] = useState<boolean>(false);
   const [customQrLogo, setCustomQrLogo] = useState<string>(''); // base64 DataURL
   const [customQrLogoName, setCustomQrLogoName] = useState<string>('');
+  const [customQrLogoTransparent, setCustomQrLogoTransparent] = useState<boolean>(false);
 
   // --- STATES FOR DEVELOPER HUB / PYTHON FILES ---
   const [activeTab, setActiveTab] = useState<'code' | 'guide'>('code');
@@ -1350,35 +1409,61 @@ export default function App() {
             if (img.complete && img.naturalWidth > 0) {
               const qrSize = canvas.width;
               const logoSize = qrSize * 0.22;
-              const padding = logoSize * 0.12;
-              const cardSize = logoSize + padding * 2;
               const center = qrSize / 2;
 
-              ctx.fillStyle = customQrTransparent ? 'rgba(255, 255, 255, 0.95)' : 'white';
-              const x = center - cardSize / 2;
-              const y = center - cardSize / 2;
-              const radius = cardSize * 0.15;
+              if (customQrLogoTransparent) {
+                // Caso queira remover a moldura branca do logotipo (Manter transparente)
+                const paddingLimpeza = logoSize * 0.10;
+                const clearSize = logoSize + paddingLimpeza * 2;
+                const clearX = center - clearSize / 2;
+                const clearY = center - clearSize / 2;
 
-              ctx.beginPath();
-              ctx.moveTo(x + radius, y);
-              ctx.lineTo(x + cardSize - radius, y);
-              ctx.quadraticCurveTo(x + cardSize, y, x + cardSize, y + radius);
-              ctx.lineTo(x + cardSize, y + cardSize - radius);
-              ctx.quadraticCurveTo(x + cardSize, y + cardSize, x + cardSize - radius, y + cardSize);
-              ctx.lineTo(x + radius, y + cardSize);
-              ctx.quadraticCurveTo(x, y + cardSize, x, y + cardSize - radius);
-              ctx.lineTo(x, y + radius);
-              ctx.quadraticCurveTo(x, y, x + radius, y);
-              ctx.closePath();
-              ctx.fill();
+                if (customQrTransparent) {
+                  // Fundo geral do QR é transparente, então limpamos a área central de forma 100% transparente
+                  ctx.clearRect(clearX, clearY, clearSize, clearSize);
+                } else {
+                  // Fundo geral do QR tem cor, então desenhamos um retângulo plano com a cor do fundo do QR para esconder os módulos de trás
+                  ctx.fillStyle = customQrBgColor;
+                  ctx.fillRect(clearX, clearY, clearSize, clearSize);
+                }
 
-              ctx.drawImage(
-                img,
-                center - logoSize / 2,
-                center - logoSize / 2,
-                logoSize,
-                logoSize
-              );
+                ctx.drawImage(
+                  img,
+                  center - logoSize / 2,
+                  center - logoSize / 2,
+                  logoSize,
+                  logoSize
+                );
+              } else {
+                // Comportamento padrão: Desenha um card branco protetor com bordas arredondadas (moldura)
+                const padding = logoSize * 0.12;
+                const cardSize = logoSize + padding * 2;
+                const cardX = center - cardSize / 2;
+                const cardY = center - cardSize / 2;
+                const radius = cardSize * 0.15;
+
+                ctx.fillStyle = customQrTransparent ? 'rgba(255, 255, 255, 0.95)' : 'white';
+                ctx.beginPath();
+                ctx.moveTo(cardX + radius, cardY);
+                ctx.lineTo(cardX + cardSize - radius, cardY);
+                ctx.quadraticCurveTo(cardX + cardSize, cardY, cardX + cardSize, cardY + radius);
+                ctx.lineTo(cardX + cardSize, cardY + cardSize - radius);
+                ctx.quadraticCurveTo(cardX + cardSize, cardY + cardSize, cardX + cardSize - radius, cardY + cardSize);
+                ctx.lineTo(cardX + radius, cardY + cardSize);
+                ctx.quadraticCurveTo(cardX, cardY + cardSize, cardX, cardY + cardSize - radius);
+                ctx.lineTo(cardX, cardY + radius);
+                ctx.quadraticCurveTo(cardX, cardY, cardX + radius, cardY);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.drawImage(
+                  img,
+                  center - logoSize / 2,
+                  center - logoSize / 2,
+                  logoSize,
+                  logoSize
+                );
+              }
             }
           }
 
@@ -1790,6 +1875,13 @@ Feito com ❤️ por Tiago Rabelo.
                             </div>
                           </div>
 
+                          {/* Alerta de Contraste para Cores Claras */}
+                          {isColorLight(customQrColor) && (
+                            <div className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-900/40 text-[11px] text-amber-300 leading-normal">
+                              ⚠️ <strong>Dica de Leitura:</strong> A cor escolhida é muito clara. Leitores de QR Code e câmeras dependem de contraste alto para escanear com facilidade. Recomendamos escolher tons mais escuros (azul escuro, vermelho escuro, verde escuro, etc) caso note falhas na leitura.
+                            </div>
+                          )}
+
                           {/* Checkbox Transparência */}
                           <label className="flex items-center gap-2 cursor-pointer select-none py-1 group">
                             <input
@@ -1829,6 +1921,21 @@ Feito com ❤️ por Tiago Rabelo.
                                 {customQrLogoName || 'Nenhum ícone selecionado'}
                               </span>
                             </div>
+
+                            {/* Checkbox para Remover Moldura Branca do Logo */}
+                            {customQrLogo && (
+                              <label className="flex items-center gap-2 cursor-pointer select-none py-1 group mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={customQrLogoTransparent}
+                                  onChange={(e) => setCustomQrLogoTransparent(e.target.checked)}
+                                  className="accent-sky-500 rounded border-[#333]"
+                                />
+                                <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition">
+                                  Remover moldura branca (Manter Logotipo Transparente)
+                                </span>
+                              </label>
+                            )}
                           </div>
                         </div>
                       )}
