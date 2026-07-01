@@ -27,14 +27,16 @@ def check_silhouette_mask(dx, dy, mask_type):
     if mask_type == "coracao":
         return (dx**2 + (dy - abs(dx)**0.6)**2) <= 0.85
     elif mask_type == "gota":
-        # Gota de sangue / água estilizada e centralizada
-        adjusted_dy = dy + 0.15
-        if adjusted_dy < 0.15:
-            # Base arredondada da gota
-            return (dx**2 + (adjusted_dy - 0.15)**2) <= 0.60
+        # Gota super elegante inspirada na imagem do iStock (topo côncavo, base redonda cheia)
+        if dy < -0.2:
+            # Semicírculo perfeito para a base arredondada, centrado em (0, -0.2) com raio 0.7
+            return (dx**2 + (dy + 0.2)**2) <= 0.49
         else:
-            # Topo pontiagudo da gota
-            return abs(dx) <= 0.78 * (1.05 - adjusted_dy)
+            # Metade superior: sobe afunilando com uma curva côncava linda até a ponta (dy = 1.0)
+            # No dy = -0.2, a largura máxima é exatamente 0.7. No dy = 1.0, a largura é 0.
+            # O expoente 1.35 dá a inclinação côncava perfeita da gota de sangue do iStock.
+            largura_limite = 0.7 * (((1.0 - dy) / 1.2)**1.35)
+            return abs(dx) <= largura_limite
     elif mask_type == "estrela":
         # Estrela de 4 pontas (astroid / diamond)
         return (abs(dx)**0.5 + abs(dy)**0.5) <= 1.05
@@ -120,9 +122,10 @@ def gerar_qr_personalizado(
                     # Determina se está dentro da máscara de silhueta principal
                     no_formato = check_silhouette_mask(dx, dy, formato_mascara)
                     
-                    # Se não estiver na silhueta e houver uma máscara ativa, usa a cor suave
-                    # Caso contrário, usa a cor principal
-                    cor_desenho = cor_qr_rgba if (no_formato or formato_mascara == "none") else cor_qr_suave_rgba
+                    if not no_formato and formato_mascara != "none":
+                        continue
+                    
+                    cor_desenho = cor_qr_rgba
                     
                     # Aplica estilos de desenho aos módulos individuais
                     if estilo_modulo == "circle":

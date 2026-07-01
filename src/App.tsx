@@ -1528,11 +1528,16 @@ export default function App() {
               return (dx * dx + Math.pow(dy - Math.pow(Math.abs(dx), 0.6), 2)) <= 0.85;
             }
             if (maskType === 'gota') {
-              const adjustedDy = dy + 0.15;
-              if (adjustedDy < 0.15) {
-                return (dx * dx + Math.pow(adjustedDy - 0.15, 2)) <= 0.60;
+              // Gota super elegante inspirada na imagem do iStock (topo côncavo, base redonda cheia)
+              if (dy < -0.2) {
+                // Semicírculo perfeito para a base arredondada, centrado em (0, -0.2) com raio 0.7
+                return (dx * dx + Math.pow(dy + 0.2, 2)) <= 0.49;
               } else {
-                return Math.abs(dx) <= 0.78 * (1.05 - adjustedDy);
+                // Metade superior: sobe afunilando com uma curva côncava linda até a ponta (dy = 1.0)
+                // No dy = -0.2, a largura máxima é exatamente 0.7. No dy = 1.0, a largura é 0.
+                // O expoente 1.35 dá a inclinação côncava perfeita da gota de sangue do iStock.
+                const larguraLimite = 0.7 * Math.pow((1.0 - dy) / 1.2, 1.35);
+                return Math.abs(dx) <= larguraLimite;
               }
             }
             if (maskType === 'estrela') {
@@ -1576,7 +1581,10 @@ export default function App() {
                   const dy = -(row - cy) / (N / 2.0);
 
                   const noFormato = checkSilhouetteMask(dx, dy, customQrMask);
-                  ctx.fillStyle = (noFormato || customQrMask === 'none') ? customQrColor : qrSuaveColor;
+                  if (!noFormato && customQrMask !== 'none') {
+                    continue;
+                  }
+                  ctx.fillStyle = customQrColor;
 
                   if (customQrStyle === 'circle') {
                     const r = (boxSize / 2) - 0.5;
