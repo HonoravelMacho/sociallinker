@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QApplication, QComboBox
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QIcon
 
 # Import utils
 from core.utils import limpar_numero, limpar_usuario, codificar_texto
@@ -304,6 +304,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SocialLinker")
         self.resize(880, 620)
         self.setMinimumSize(780, 500)
+        
+        # Define o Ícone da Janela (para barra de tarefas e dock)
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for ext in ["jpg", "png"]:
+            icon_path = os.path.join(base_dir, "ui", f"sociallinker.{ext}")
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
+                break
         
         # Layout Principal (Dividido em Sidebar e Conteúdo)
         main_widget = QWidget()
