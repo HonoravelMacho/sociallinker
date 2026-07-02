@@ -32,8 +32,29 @@ jobs:
           pip install pyinstaller
 
       - name: Create Windows ICO icon
+        shell: bash
         run: |
-          python -c "from PIL import Image; img = Image.open('desktop/ui/sociallinker.jpg'); img.save('desktop/ui/sociallinker.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])"
+          python -c "
+          import os
+          from PIL import Image
+          img_path = 'desktop/ui/sociallinker.jpg'
+          ico_path = 'desktop/ui/sociallinker.ico'
+          if os.path.exists(img_path):
+              img = Image.open(img_path)
+              img.save(ico_path, format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])
+          else:
+              img = Image.new('RGB', (512, 512), color='white')
+              from PIL import ImageDraw
+              draw = ImageDraw.Draw(img)
+              draw.ellipse([40, 40, 472, 472], outline='black', width=16)
+              draw.line([40, 256, 472, 256], fill='black', width=16)
+              draw.line([256, 40, 256, 472], fill='black', width=16)
+              draw.ellipse([100, 40, 412, 472], outline='black', width=12)
+              draw.ellipse([160, 40, 352, 472], outline='black', width=12)
+              draw.arc([40, 100, 472, 412], 180, 360, fill='black', width=12)
+              draw.arc([40, 100, 472, 412], 0, 180, fill='black', width=12)
+              img.save(ico_path, format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])
+          "
 
       - name: Build with PyInstaller
         run: |
@@ -122,10 +143,33 @@ jobs:
 
           # Convert desktop JPG icon to high-quality transparent PNG launcher icons
           python3 -c "
-          from PIL import Image
-          img = Image.open('desktop/ui/sociallinker.jpg')
-          img.save('$DEB_DIR/usr/share/pixmaps/sociallinker.png', 'PNG')
-          img.save('$DEB_DIR/usr/share/icons/hicolor/512x512/apps/sociallinker.png', 'PNG')
+          import os
+          from PIL import Image, ImageDraw
+          img_path = 'desktop/ui/sociallinker.jpg'
+          deb_dir = 'deb-package'
+          pixmap_path = f'{deb_dir}/usr/share/pixmaps/sociallinker.png'
+          icon_path = f'{deb_dir}/usr/share/icons/hicolor/512x512/apps/sociallinker.png'
+          
+          # Garante que as pastas de destino existam
+          os.makedirs(os.path.dirname(pixmap_path), exist_ok=True)
+          os.makedirs(os.path.dirname(icon_path), exist_ok=True)
+          
+          if os.path.exists(img_path):
+              img = Image.open(img_path)
+              img.save(pixmap_path, 'PNG')
+              img.save(icon_path, 'PNG')
+          else:
+              img = Image.new('RGB', (512, 512), color='white')
+              draw = ImageDraw.Draw(img)
+              draw.ellipse([40, 40, 472, 472], outline='black', width=16)
+              draw.line([40, 256, 472, 256], fill='black', width=16)
+              draw.line([256, 40, 256, 472], fill='black', width=16)
+              draw.ellipse([100, 40, 412, 472], outline='black', width=12)
+              draw.ellipse([160, 40, 352, 472], outline='black', width=12)
+              draw.arc([40, 100, 472, 412], 180, 360, fill='black', width=12)
+              draw.arc([40, 100, 472, 412], 0, 180, fill='black', width=12)
+              img.save(pixmap_path, 'PNG')
+              img.save(icon_path, 'PNG')
           "
 
           # Create Control file (Declaring critical dependencies for PySide6/Qt6 runtime)
