@@ -32,13 +32,8 @@ jobs:
           pip install pyinstaller
 
       - name: Create Windows ICO icon
-        shell: bash
         run: |
-          python -c "
-          from PIL import Image
-          img = Image.open('desktop/ui/sociallinker.jpg')
-          img.save('desktop/ui/sociallinker.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])
-          "
+          python -c "from PIL import Image; img = Image.open('desktop/ui/sociallinker.jpg'); img.save('desktop/ui/sociallinker.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])"
 
       - name: Build with PyInstaller
         run: |
@@ -107,8 +102,8 @@ jobs:
           mkdir -p $DEB_DIR/usr/share/sociallinker
           mkdir -p $DEB_DIR/usr/share/applications
           
-          # Copy PyInstaller distribution
-          cp -r desktop/dist/sociallinker/* $DEB_DIR/usr/share/sociallinker/
+          # Copy PyInstaller distribution preserving permissions, symlinks, etc.
+          cp -a desktop/dist/sociallinker/* $DEB_DIR/usr/share/sociallinker/
           
           # Create start wrapper script
           cat << 'EOF' > $DEB_DIR/usr/bin/sociallinker
@@ -117,7 +112,8 @@ jobs:
           EOF
           chmod +x $DEB_DIR/usr/bin/sociallinker
 
-          # Crucial: Ensure the main packaged PyInstaller binary has executable permissions!
+          # Crucial: Ensure the main packaged PyInstaller binary and all dependencies are fully readable and executable!
+          chmod -R a+rX $DEB_DIR/usr/share/sociallinker/
           chmod +x $DEB_DIR/usr/share/sociallinker/sociallinker
           
           # Create icon directories inside package
